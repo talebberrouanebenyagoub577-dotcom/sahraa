@@ -1,0 +1,230 @@
+# ============================================
+# SAHRAA Production Stack
+# Deploy: docker compose up -d
+# Target: Hostinger VPS / Ubuntu 24.04
+# ============================================
+
+services:
+  # ─── PostgreSQL ─────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: sahraa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sahraa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-sahraa}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - sahraa-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sahraa} -d ${POSTGRES_DB:-sahraa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c max_connections=200
+      -c random_page_cost=1.1
+
+  # ─── Redis ──────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: sahraa-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - sahraa-internal
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─── Database Migration (runs once) ─────────
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
+    container_name: sahraa-migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sahraa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sahraa}?schema=public
+      SEED_DATABASE: ${SEED_DATABASE:-false}
+    command: >
+      sh -c "npx prisma migrate deploy &&
+      if [ \"$$SEED_DATABASE\" = \"true\" ]; then echo 'Seeding database...' && npx tsx prisma/seed.ts; fi"
+    networks:
+      - sahraa-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ─── Next.js Application ────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://sahraa.com}
+    container_name: sahraa-app
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sahraa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sahraa}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://sahraa.com}
+      NEXT_PUBLIC_APP_NAME: SAHRAA
+      NODE_ENV: production
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      CSRF_SECRET: ${CSRF_SECRET:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@sahraa.com}
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    networks:
+      - sahraa-internal
+      - sahraa-external
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # ─── Nginx Reverse Proxy ────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sahraa-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - nginx_cache:/var/cache/nginx
+    networks:
+      - sahraa-internal
+      - sahraa-external
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─── Certbot (Let's Encrypt SSL) ────────────
+  certbot:
+    image: certbot/certbot:latest
+    container_name: sahraa-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - sahraa-external
+
+  # ─── Health Monitor ─────────────────────────
+  health-monitor:
+    image: alpine:3.20
+    container_name: sahraa-monitor
+    restart: unless-stopped
+    volumes:
+      - ./scripts/health-check.sh:/health-check.sh:ro
+      - ./logs:/logs
+    environment:
+      APP_URL: http://app:3000
+      CHECK_INTERVAL: ${HEALTH_CHECK_INTERVAL:-60}
+    entrypoint: ["/bin/sh", "/health-check.sh"]
+    networks:
+      - sahraa-internal
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # ─── Automated DB Backup ────────────────────
+  db-backup:
+    image: postgres:16-alpine
+    container_name: sahraa-backup
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sahraa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sahraa}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup-db.sh:/backup-db.sh:ro
+    entrypoint: ["/bin/sh", "-c", "while true; do sh /backup-db.sh; sleep 86400; done"]
+    networks:
+      - sahraa-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  sahraa-internal:
+    driver: bridge
+  sahraa-external:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nginx_cache:
+    driver: local
