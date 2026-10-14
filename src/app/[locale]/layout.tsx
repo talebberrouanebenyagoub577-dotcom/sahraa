@@ -8,6 +8,8 @@ import { Footer } from "@/components/layout/Footer";
 import { ChatAssistant } from "@/components/ai/ChatAssistant";
 import { AuthProvider } from "@/lib/context/AuthContext";
 import { CartProvider } from "@/lib/context/CartContext";
+import { CartDrawer } from "@/components/cart/CartDrawer";
+import { CheckoutModal } from "@/components/checkout/CheckoutModal";
 import { SettingsProvider, type SiteSettingsData } from "@/lib/context/SettingsContext";
 import { getSiteSettings, getSiteBaseUrl, serializeSiteSettings } from "@/lib/settings";
 import { LocalePersistence } from "@/components/layout/LocalePersistence";
@@ -104,6 +106,8 @@ export default async function LocaleLayout({
               <Header />
               <main className="flex-1">{children}</main>
               <Footer />
+              <CartDrawer />
+              <CheckoutModal />
               <ChatAssistant />
               <Toaster
                 position={dir === "rtl" ? "top-left" : "top-right"}

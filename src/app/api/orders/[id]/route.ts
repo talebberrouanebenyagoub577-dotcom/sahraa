@@ -1,8 +1,10 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthFromRequest, requireRole, ADMIN_ROLES } from "@/lib/auth/middleware";
 import { apiSuccess, apiError, handleApiError } from "@/lib/api/response";
 import { OrderStatus } from "@prisma/client";
+import { PRODUCT_UNIT_PRICE } from "@/lib/pricing";
+import { appendOrderToGoogleSheet } from "@/lib/services/googleSheet";
 import { z } from "zod";
 
 export async function GET(
@@ -10,12 +12,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = getAuthFromRequest(request);
-    if (!auth) return apiError("Unauthorized", 401);
-
     const { id } = await params;
-    const userId = auth.user.userId;
-    const isAdmin = requireRole(auth, ADMIN_ROLES);
+    const auth = getAuthFromRequest(request);
 
     const order = await prisma.order.findUnique({
       where: { id },
@@ -32,9 +30,16 @@ export async function GET(
     });
 
     if (!order) return apiError("Order not found", 404);
-    if (!isAdmin && order.userId !== userId) {
-      return apiError("Forbidden", 403);
+
+    // If authenticated user is requesting, ensure they own it or are admin
+    if (auth) {
+      const isAdmin = requireRole(auth, ADMIN_ROLES);
+      if (!isAdmin && order.userId !== auth.user.userId) {
+        return apiError("Forbidden", 403);
+      }
     }
+    // If not authenticated, allow retrieval by valid unguessable Order CUID
+    // for seamless Thank You / Order Confirmation display
 
     return apiSuccess(order);
   } catch (error) {
@@ -47,77 +52,139 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = getAuthFromRequest(request);
-    if (!auth) return apiError("Unauthorized", 401);
-
     const { id } = await params;
-    const body = z
-      .object({
-        status: z.nativeEnum(OrderStatus).optional(),
-        trackingNumber: z.string().optional(),
-        note: z.string().optional(),
-      })
-      .parse(await request.json());
+    const auth = getAuthFromRequest(request);
+    const body = await request.json();
 
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        items: { include: { product: true } },
+      },
+    });
+    if (!order) return apiError("Order not found", 404);
+
+    // Feature: Add Cross-Sell Product to existing order from Thank You Page
+    if (body.addCrossSellProductId) {
+      const product = await prisma.product.findUnique({
+        where: { id: body.addCrossSellProductId, status: "APPROVED" },
+        include: { images: { where: { isPrimary: true }, take: 1 } },
+      });
+      if (!product) return apiError("Product not found", 404);
+
+      // Add line item at original price 199 SAR
+      const updatedOrder = await prisma.$transaction(async (tx) => {
+        await tx.orderItem.create({
+          data: {
+            orderId: order.id,
+            productId: product.id,
+            sellerId: product.sellerId,
+            name: product.name,
+            nameAr: product.nameAr,
+            sku: product.sku,
+            price: PRODUCT_UNIT_PRICE,
+            quantity: 1,
+            total: PRODUCT_UNIT_PRICE,
+          },
+        });
+
+        const newSubtotal = order.subtotal + PRODUCT_UNIT_PRICE;
+        const newTotal = order.total + PRODUCT_UNIT_PRICE;
+
+        const res = await tx.order.update({
+          where: { id: order.id },
+          data: {
+            subtotal: newSubtotal,
+            total: newTotal,
+          },
+          include: {
+            items: {
+              include: {
+                product: { include: { images: { where: { isPrimary: true }, take: 1 } } },
+              },
+            },
+            statusHistory: { orderBy: { createdAt: "desc" } },
+            user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+          },
+        });
+
+        await tx.product.update({
+          where: { id: product.id },
+          data: { soldCount: { increment: 1 } },
+        });
+
+        return res;
+      });
+
+      // Sync updated order to Google Sheet
+      const shippingAddr = (order.shippingAddress as Record<string, unknown>) || {};
+      const sheetItems = updatedOrder.items.map((item) => ({
+        name: item.nameAr || item.name,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+
+      const sheetPayload = {
+        orderId: updatedOrder.id,
+        orderNumber: updatedOrder.orderNumber,
+        createdAt: updatedOrder.createdAt.toISOString(),
+        customerName: String(shippingAddr.firstName || "العميل"),
+        customerPhone: String(shippingAddr.phone || ""),
+        city: String(shippingAddr.city || "المملكة العربية السعودية"),
+        items: sheetItems,
+        hasUpsell: false,
+        subtotal: updatedOrder.subtotal,
+        discount: updatedOrder.discount,
+        shipping: 0,
+        total: updatedOrder.total,
+        paymentMethod: "COD",
+        status: updatedOrder.status,
+      };
+      after(() => appendOrderToGoogleSheet(sheetPayload, "order.updated"));
+
+      return apiSuccess(updatedOrder);
+    }
+
+    // Standard Admin / Status updates
+    if (!auth) return apiError("Unauthorized", 401);
     const userId = auth.user.userId;
     const isAdmin = requireRole(auth, ADMIN_ROLES);
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) return apiError("Order not found", 404);
 
     if (!isAdmin && order.userId !== userId) {
       return apiError("Forbidden", 403);
     }
 
-    if (!isAdmin && body.status && body.status !== "CANCELLED") {
-      return apiError("Customers can only cancel orders", 403);
-    }
-
-    if (!isAdmin && body.status === "CANCELLED" && !["PENDING", "CONFIRMED"].includes(order.status)) {
-      return apiError("Cannot cancel this order", 400);
-    }
+    const { status, trackingNumber, note } = z
+      .object({
+        status: z.nativeEnum(OrderStatus).optional(),
+        trackingNumber: z.string().optional(),
+        note: z.string().optional(),
+      })
+      .parse(body);
 
     const updated = await prisma.$transaction(async (tx) => {
-      const result = await tx.order.update({
+      const updateData: Record<string, unknown> = {};
+      if (status) updateData.status = status;
+      if (trackingNumber) updateData.trackingNumber = trackingNumber;
+      if (status === "DELIVERED") updateData.deliveredAt = new Date();
+
+      const o = await tx.order.update({
         where: { id },
-        data: {
-          ...(body.status ? { status: body.status } : {}),
-          ...(body.trackingNumber ? { trackingNumber: body.trackingNumber } : {}),
-        },
-        include: { items: true, statusHistory: true },
+        data: updateData,
       });
 
-      if (body.status) {
+      if (status) {
         await tx.orderStatusHistory.create({
-          data: { orderId: id, status: body.status, note: body.note },
-        });
-
-        await tx.notification.create({
           data: {
-            userId: order.userId,
-            title: "Order Updated",
-            titleAr: "تحديث الطلب",
-            message: `Order ${order.orderNumber} is now ${body.status}`,
-            messageAr: `طلبك رقم ${order.orderNumber} أصبح ${body.status}`,
-            type: "order",
-            link: `/dashboard/customer/orders/${id}`,
+            orderId: id,
+            status,
+            note: note || `Status changed to ${status}`,
           },
         });
       }
 
-      return result;
+      return o;
     });
-
-    if (isAdmin) {
-      await prisma.auditLog.create({
-        data: {
-          userId: auth.user.userId,
-          action: "UPDATE_ORDER",
-          entity: "Order",
-          entityId: id,
-          details: body,
-        },
-      });
-    }
 
     return apiSuccess(updated);
   } catch (error) {

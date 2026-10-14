@@ -68,7 +68,21 @@ export function ProductCard({ product, currency = Currency.SAR }: ProductCardPro
         </div>
         <p className="mt-1 text-xs font-medium text-emerald-700">{t("freeShipping")} · {t("bundlePrice")}</p>
         {product.codAvailable && <Badge variant="success" className="mt-2 w-fit text-[10px]">{t("cod")}</Badge>}
-        <AddToCartButton productId={product.id} size="sm" className="mt-3 w-full" disabled={!inStock} label={inStock ? t("addToCart") : tp("outOfStock")} />
+        <AddToCartButton
+          productId={product.id}
+          size="sm"
+          className="mt-3 w-full"
+          disabled={!inStock}
+          productDetails={{
+            id: product.id,
+            name: product.name,
+            nameAr: product.nameAr,
+            slug: product.slug,
+            image,
+            price: product.price,
+          }}
+          label={inStock ? t("addToCart") : tp("outOfStock")}
+        />
       </div>
     </div>
   );

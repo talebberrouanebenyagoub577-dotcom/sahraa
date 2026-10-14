@@ -1,0 +1,2 @@
+order_number,created_at,customer_name,phone,city,items,qty,total,currency,payment_method,has_upsell,upsell_product,status,confirmation_notes,courier,tracking_number,utm_source,utm_campaign,event_id,synced_at
+SAH-EXAMPLE,2026-10-14T12:00:00Z,عميل تجريبي,+966500000000,الرياض,منتج تجريبي ×1,1,199,SAR,COD,no,,new,,,,,,SAH-EXAMPLE_Purchase,

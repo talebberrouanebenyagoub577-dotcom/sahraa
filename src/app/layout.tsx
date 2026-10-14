@@ -32,8 +32,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html className={`${inter.variable} ${notoArabic.variable} dark h-full`}>
-      <body className="min-h-full flex flex-col bg-background text-foreground antialiased">{children}</body>
+    <html className={`${inter.variable} ${notoArabic.variable} dark h-full`} suppressHydrationWarning>
+      <body className="min-h-full flex flex-col bg-background text-foreground antialiased" suppressHydrationWarning>{children}</body>
     </html>
   );
 }

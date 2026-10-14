@@ -18,7 +18,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
     networks:
-      - sahraa-internal
+      sahraa-internal:
+        aliases:
+          - sahraaaaaaaaaaa_database
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sahraa} -d ${POSTGRES_DB:-sahraa}"]
       interval: 10s
@@ -64,77 +66,78 @@ services:
         limits:
           memory: 512M
 
-  # ─── Database Migration (runs once) ─────────
-  migrate:
+  # ─── API (migrate lock, then port 4000) ──
+  api:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-      target: migrator
-    container_name: sahraa-migrate
+    container_name: sahraa-api
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sahraa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sahraa}?schema=public
-      SEED_DATABASE: ${SEED_DATABASE:-false}
-    command: >
-      sh -c "npx prisma migrate deploy &&
-      if [ \"$$SEED_DATABASE\" = \"true\" ]; then echo 'Seeding database...' && npx tsx prisma/seed.ts; fi"
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-sahraa}:${POSTGRES_PASSWORD}@sahraaaaaaaaaaa_database:5432/${POSTGRES_DB:-sahraa}?sslmode=disable}
+      REDIS_URL: redis://redis:6379
+      PORT: 4000
+      NODE_ENV: production
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://sahraaaaaaaaaaa.shop}
+      PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://sahraaaaaaaaaaa.shop}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      SHEETS_SYNC_ENABLED: ${SHEETS_SYNC_ENABLED:-true}
+      GOOGLE_SHEETS_WEBHOOK_URL: ${GOOGLE_SHEETS_WEBHOOK_URL:-}
+      GOOGLE_SHEETS_SHARED_SECRET: ${GOOGLE_SHEETS_SHARED_SECRET:-}
+      META_PIXEL_ID: ${META_PIXEL_ID:-}
+      META_CAPI_ACCESS_TOKEN: ${META_CAPI_ACCESS_TOKEN:-}
+      META_TEST_EVENT_CODE: ${META_TEST_EVENT_CODE:-}
+      TIKTOK_PIXEL_ID: ${TIKTOK_PIXEL_ID:-}
+      TIKTOK_EVENTS_ACCESS_TOKEN: ${TIKTOK_EVENTS_ACCESS_TOKEN:-}
+      TIKTOK_TEST_EVENT_CODE: ${TIKTOK_TEST_EVENT_CODE:-}
+      SNAP_PIXEL_ID: ${SNAP_PIXEL_ID:-}
+      SNAP_CAPI_TOKEN: ${SNAP_CAPI_TOKEN:-}
+      SNAP_TEST_EVENT_CODE: ${SNAP_TEST_EVENT_CODE:-}
     networks:
       - sahraa-internal
     depends_on:
       postgres:
         condition: service_healthy
-    restart: "no"
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
 
-  # ─── Next.js Application ────────────────────
+  # ─── Next.js storefront ─────────────────────
   app:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://sahraa.com}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://sahraaaaaaaaaaa.shop}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.sahraaaaaaaaaaa.shop}
+        NEXT_PUBLIC_META_PIXEL_ID: ${NEXT_PUBLIC_META_PIXEL_ID:-}
+        NEXT_PUBLIC_TIKTOK_PIXEL_ID: ${NEXT_PUBLIC_TIKTOK_PIXEL_ID:-}
+        NEXT_PUBLIC_SNAP_PIXEL_ID: ${NEXT_PUBLIC_SNAP_PIXEL_ID:-}
     container_name: sahraa-app
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sahraa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sahraa}?schema=public
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://sahraa.com}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://sahraaaaaaaaaaa.shop}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.sahraaaaaaaaaaa.shop}
       NEXT_PUBLIC_APP_NAME: SAHRAA
       NODE_ENV: production
-      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
-      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
-      CSRF_SECRET: ${CSRF_SECRET:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
-      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
-      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
-      PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-noreply@sahraa.com}
-    volumes:
-      - ./public/uploads:/app/public/uploads
     networks:
       - sahraa-internal
       - sahraa-external
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-      redis:
+      api:
         condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 2G
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ar').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

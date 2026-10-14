@@ -14,11 +14,19 @@ export const addressSchema = z.object({
   isDefault: z.boolean().default(false),
 });
 
-const checkoutAddressSchema = z.object({
+export const checkoutAddressSchema = z.object({
   label: z.string().default("Home"),
   firstName: z.string().trim().min(2),
   phone: z.string().trim().min(8),
+  city: z.string().optional(),
+  street: z.string().optional(),
   country: z.nativeEnum(CountryCode).default(CountryCode.SA),
+});
+
+export const checkoutItemSchema = z.object({
+  productId: z.string(),
+  variantId: z.string().optional().nullable(),
+  quantity: z.number().int().min(1).max(99).default(1),
 });
 
 export const checkoutSchema = z.object({
@@ -26,6 +34,8 @@ export const checkoutSchema = z.object({
   paymentMethod: z.nativeEnum(PaymentMethod).default(PaymentMethod.COD),
   couponCode: z.string().optional(),
   notes: z.string().max(500).optional(),
+  items: z.array(checkoutItemSchema).optional(),
+  upsellProductId: z.string().optional().nullable(),
 });
 
 export const cartItemSchema = z.object({

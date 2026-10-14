@@ -18,7 +18,7 @@
     "buyNow": "Buy Now",
     "cod": "Cash on Delivery",
     "freeShipping": "Free Shipping",
-    "bundlePrice": "Any 3 different products for 399 SAR",
+    "bundlePrice": "2 for 279 SAR · 3 for 349 SAR",
     "loading": "Loading...",
     "error": "An error occurred",
     "success": "Success",
@@ -51,7 +51,7 @@
     "faq": "FAQ"
   },
   "header": {
-    "promoBanner": "1 product for 199 SAR · any 3 different products for 399 SAR · Free delivery"
+    "promoBanner": "1 Product: 199 SAR · 2 Products: 279 SAR · 3 Products: 349 SAR · Free Delivery & COD"
   },
   "home": {
     "heroTitle": "Shop Smart, Pay on Delivery",
@@ -63,15 +63,17 @@
     "newArrivals": "New Arrivals",
     "aiRecommended": "Recommended for You",
     "categories": "Shop by Category",
-    "reviews": "Customer Reviews",
+    "reviews": "Verified Customer Experiences",
+    "reviewsSubtitle": "Authentic reviews from our customers across the GCC upon Cash on Delivery",
+    "verifiedBuyer": "Verified Buyer",
     "newsletter": "Subscribe to Newsletter",
     "newsletterDesc": "Get the latest deals and discounts",
     "emailPlaceholder": "Your email address",
     "subscribe": "Subscribe",
     "shopByCategory": "Shop by Category",
     "offerKicker": "Special offer",
-    "offerTitle": "Any 3 different products for 399 SAR",
-    "offerSubtitle": "Mix and match any products from the store. One product is 199 SAR, with free delivery."
+    "offerTitle": "Bundle & Save: 2 for 279 SAR · 3 for 349 SAR",
+    "offerSubtitle": "One product is 199 SAR, with free delivery and Cash on Delivery across the Kingdom."
   },
   "product": {
     "reviews": "Reviews",
@@ -208,14 +210,18 @@
     },
     "batterySwitchMedia": {
       "sectionTitle": "Product images and details",
-      "productTitle": "Remote battery disconnect switch",
-      "productDescription": "A compact unit that mounts directly on the car battery terminal, between the terminal and the cable. Cut or restore the battery power completely at the press of a button, with no tools and no unbolting cables. A practical way to protect the battery from draining when the car is parked for a long time.",
-      "remotesTitle": "Two ON / OFF remotes",
-      "remotesDescription": "Comes with two sleek remotes on key rings: ON restores power and OFF cuts it. Keep one with your car keys and the other as a spare or for another family member.",
-      "installationTitle": "Quick installation by a technician",
-      "installationDescription": "The switch fits on the battery terminal in minutes, and from then on you control it from outside the car with the remote. Installation by a qualified technician is recommended; check compatibility with your car's battery and electrical system.",
-      "remoteControlTitle": "Remote control, from anywhere in the garage",
-      "remoteControlDescription": "The problem: you leave your car in a dark garage or for a long time, worried the battery will drain or someone will try to start it, and opening the hood to unbolt the cable is a hassle.\nThe solution: the unit sits hidden in the engine bay, barely visible. From outside the car, press OFF on the remote to cut the power, then ON when you return. No tools, no mess, no opening the hood, just one press."
+      "mainTitle": "Control your car battery with one press",
+      "mainDescription": "The switch sits on the battery terminal in the engine bay, with the two remotes in your hand. Press OFF to cut the battery power completely, and ON to restore it before starting. No opening the hood or unbolting cables every time, and extra protection for the battery and the car when it is parked for long periods.",
+      "featuresTitle": "Strong specs in a compact unit",
+      "featuresDescription": "• High current up to 240A, suitable for most cars.\n• Magnetic latching that holds its state without constant power draw.\n• Power saving: only 3mA standby current.\n• Automatic disconnect when battery voltage drops low, to prevent draining.\n• Anti-false contact design.\n• Manual ON/OFF buttons on the unit, with work, protection, and battery-level indicator lights.",
+      "kitTitle": "What's in the box",
+      "kitDescription": "The unit with voltage display, two ON/OFF remotes with key rings, a red wire with a ring terminal, an insulating pad, and a metal washer. Some versions also include a black connection cable, a wrench, and an Allen key for installation. Accessories may vary by version.",
+      "displayTitle": "Battery voltage display",
+      "displayDescription": "A digital display on the front shows the battery voltage so you know its condition at any time, plus manual ON/OFF buttons to control it directly from the unit if you don't have the remote. Sturdy gold-tone brass terminals for a solid connection.",
+      "manualTitle": "With a user manual",
+      "manualDescription": "Comes with a user manual covering the product diagram, specifications, and step-by-step installation, along with the two remotes and the insulating pad.",
+      "wiringTitle": "Wiring diagram",
+      "wiringDescription": "The switch mounts on the battery's negative terminal and the car's negative cable connects to its other side, while the red wire goes to the positive terminal to power the unit. Installation by a qualified technician is recommended; check compatibility with your car's electrical system."
     },
     "eyeLiftMedia": {
       "sectionTitle": "Product images and details",
@@ -336,7 +342,7 @@
     "shippingInformation": "Delivery information",
     "shippingCalculatedAtCheckout": "Delivery is free on every order.",
     "offerTitle": "Special offer",
-    "offerBody": "Each product is 199 SAR. Buy any 3 different products and the total becomes 399 SAR, with free delivery.",
+    "offerBody": "Bundle Savings: 1 for 199 SAR · 2 for 279 SAR · 3 for 349 SAR with free delivery and Cash on Delivery.",
     "secureCheckoutExplanation": "Your order is processed securely and no online payment is required.",
     "barcode": "Barcode",
     "weight": "Weight",
@@ -372,7 +378,7 @@
     "orderSummary": "Order Summary",
     "free": "Free",
     "bundleOffer": "3-product offer",
-    "bundleHint": "Add {count} more to get any 3 different products for 399 SAR with free delivery"
+    "bundleHint": "Add another item to unlock exclusive bundle savings with free delivery"
   },
   "checkout": {
     "title": "Checkout",
@@ -386,13 +392,13 @@
     "paypal": "PayPal",
     "placeOrder": "Place Order",
     "orderSummary": "Order Summary",
-    "orderTotalNote": "Each product is 199 SAR. Any 3 different products cost 399 SAR, with free delivery.",
+    "orderTotalNote": "1 product: 199 SAR · 2 products: 279 SAR · 3 products: 349 SAR, with free delivery across the Kingdom.",
     "free": "Free",
     "subtotal": "Subtotal",
     "shipping": "Delivery",
     "discount": "Discount",
     "total": "Total",
-    "bundleHint": "Add {count} more to get any 3 different products for 399 SAR",
+    "bundleHint": "Bundle & Save: 2 for 279 SAR or 3 for 349 SAR",
     "placingOrder": "Placing your order...",
     "firstName": "First Name",
     "lastName": "Last Name",

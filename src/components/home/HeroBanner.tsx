@@ -67,6 +67,7 @@ export function HeroBanner({ banners }: { banners: Banner[] }) {
                     fill
                     className="object-cover"
                     priority
+                    unoptimized={banner.image.startsWith("http")}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 start-0 p-8 md:p-12">

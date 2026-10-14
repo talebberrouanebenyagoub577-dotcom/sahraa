@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --background: #0a0a0f;
+  --foreground: #f1f5f9;
+  --surface: #111827;
+  --surface-elevated: #1e293b;
+  --border: #334155;
+  --border-subtle: #1e293b;
+  --primary: #f59e0b;
+  --primary-dark: #d97706;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --font-sans: var(--font-noto-arabic), var(--font-inter), system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+[dir="rtl"] {
+  font-feature-settings: "ss01", "ss02";
+}
+
+/* Dark theme: remap common light utility classes */
+.bg-white {
+  background-color: var(--surface) !important;
+}
+
+.bg-slate-50 {
+  background-color: #0f172a !important;
+}
+
+.bg-slate-100 {
+  background-color: var(--surface-elevated) !important;
+}
+
+.bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+.bg-amber-50 {
+  background-color: rgb(69 26 3 / 0.4) !important;
+}
+
+.from-amber-50 {
+  --tw-gradient-from: rgb(69 26 3 / 0.5) !important;
+}
+
+.to-white {
+  --tw-gradient-to: var(--background) !important;
+}
+
+.text-slate-900 {
+  color: #f8fafc !important;
+}
+
+.text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+.text-slate-700 {
+  color: #e2e8f0 !important;
+}
+
+.text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+.text-slate-500 {
+  color: #64748b !important;
+}
+
+.border-slate-50 {
+  border-color: #1e293b !important;
+}
+
+.border-slate-100 {
+  border-color: var(--border-subtle) !important;
+}
+
+.border-slate-200 {
+  border-color: var(--border) !important;
+}
+
+.border-amber-200 {
+  border-color: rgb(180 83 9 / 0.5) !important;
+}
+
+.hover\:bg-slate-50:hover {
+  background-color: var(--surface-elevated) !important;
+}
+
+.hover\:bg-slate-100:hover {
+  background-color: #334155 !important;
+}
+
+.hover\:bg-white:hover {
+  background-color: #334155 !important;
+}
+
+.ring-offset-white {
+  --tw-ring-offset-color: var(--background) !important;
+}
+
+.text-amber-600 {
+  color: #fbbf24 !important;
+}
+
+.hover\:text-amber-600:hover {
+  color: #fbbf24 !important;
+}
+
+.hover\:text-amber-700:hover {
+  color: #f59e0b !important;
+}
+
+.bg-white\/90 {
+  background-color: rgb(17 24 39 / 0.9) !important;
+}
+
+.hover\:bg-white:hover {
+  background-color: #334155 !important;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

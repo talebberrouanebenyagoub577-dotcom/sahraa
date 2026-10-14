@@ -1,12 +1,19 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthFromRequest, requireRole, ADMIN_ROLES } from "@/lib/auth/middleware";
+import { signAccessToken } from "@/lib/auth/jwt";
 import { checkoutSchema } from "@/lib/validations/order";
 import { apiSuccess, apiError, handleApiError } from "@/lib/api/response";
-import { generateOrderNumber, calculateDiscount } from "@/lib/utils";
+import { generateOrderNumber } from "@/lib/utils";
 import { getCurrencyForCountry } from "@/lib/utils";
-import { cartItemCount, quoteOfferTotals } from "@/lib/pricing";
+import {
+  PRODUCT_UNIT_PRICE,
+  UPSELL_SPECIAL_PRICE,
+  calculateTierPrice,
+  FREE_SHIPPING_COST,
+} from "@/lib/pricing";
 import { PaymentMethod } from "@prisma/client";
+import { appendOrderToGoogleSheet, SheetOrderItem } from "@/lib/services/googleSheet";
 
 class CheckoutError extends Error {
   constructor(message: string, public status = 400) {
@@ -61,130 +68,263 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = getAuthFromRequest(request);
-    if (!auth) return apiError("Unauthorized", 401);
-
     const body = await request.json();
     const data = checkoutSchema.parse(body);
+
     if (data.paymentMethod !== PaymentMethod.COD) {
       return apiError("Only Cash on Delivery is currently available", 400);
     }
 
-    const cart = await prisma.cart.findUnique({
-      where: { userId: auth.user.userId },
-      include: {
-        items: {
-          include: {
-            product: { include: { inventory: true, seller: true } },
+    // 1. Resolve User (Logged-in or Seamless Guest for COD GCC market)
+    const auth = getAuthFromRequest(request);
+    let userId = auth?.user?.userId;
+    let authCookieToken: string | null = null;
+
+    const rawPhone = data.shippingAddress.phone.replace(/[\s\-\(\)]/g, "");
+    const customerName = data.shippingAddress.firstName.trim();
+
+    if (!userId) {
+      // Find or create customer account by phone
+      let user = await prisma.user.findFirst({
+        where: { phone: rawPhone },
+      });
+
+      if (!user) {
+        const uniqueEmail = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 7)}@guest.sahraa.store`;
+        user = await prisma.user.create({
+          data: {
+            email: uniqueEmail,
+            phone: rawPhone,
+            firstName: customerName,
+            lastName: "",
+            passwordHash: "cod_guest_order_no_password",
+            role: "CUSTOMER",
+            country: data.shippingAddress.country,
+            currency: "SAR",
+          },
+        });
+      }
+
+      userId = user.id;
+      authCookieToken = signAccessToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      });
+    }
+
+    // 2. Resolve Items (Direct payload or DB Cart)
+    interface ResolvedLineItem {
+      productId: string;
+      variantId?: string | null;
+      quantity: number;
+      product: {
+        id: string;
+        name: string;
+        nameAr: string;
+        price: number;
+        sku: string;
+        sellerId: string;
+        inventoryQuantity: number;
+      };
+      variant?: {
+        id: string;
+        sku: string;
+        price?: number | null;
+        stock: number;
+      } | null;
+      isUpsell?: boolean;
+    }
+
+    const resolvedItems: ResolvedLineItem[] = [];
+    let cartIdToDelete: string | null = null;
+    let cartItemIdsToDelete: string[] = [];
+
+    if (data.items && data.items.length > 0) {
+      // Resolve items from request body directly
+      const productIds = [
+        ...new Set(data.items.map((i) => i.productId)),
+      ];
+      const products = await prisma.product.findMany({
+        where: { id: { in: productIds }, status: "APPROVED" },
+        include: { inventory: true },
+      });
+      const prodMap = new Map(products.map((p) => [p.id, p]));
+
+      const variantIds = data.items
+        .map((i) => i.variantId)
+        .filter((id): id is string => Boolean(id));
+      const variants =
+        variantIds.length > 0
+          ? await prisma.productVariant.findMany({
+              where: { id: { in: variantIds }, isActive: true },
+            })
+          : [];
+      const varMap = new Map(variants.map((v) => [v.id, v]));
+
+      for (const item of data.items) {
+        const prod = prodMap.get(item.productId);
+        if (!prod) continue;
+        const variant = item.variantId ? varMap.get(item.variantId) : null;
+        resolvedItems.push({
+          productId: prod.id,
+          variantId: variant?.id || null,
+          quantity: item.quantity,
+          product: {
+            id: prod.id,
+            name: prod.name,
+            nameAr: prod.nameAr,
+            price: prod.price,
+            sku: prod.sku,
+            sellerId: prod.sellerId,
+            inventoryQuantity: prod.inventory?.quantity || 999,
+          },
+          variant,
+        });
+      }
+    } else {
+      // Fallback to DB Cart
+      const cart = await prisma.cart.findUnique({
+        where: { userId },
+        include: {
+          items: {
+            include: {
+              product: { include: { inventory: true } },
+            },
           },
         },
-        coupon: true,
-      },
-    });
+      });
 
-    if (!cart || cart.items.length === 0) {
+      if (cart && cart.items.length > 0) {
+        cartIdToDelete = cart.id;
+        cartItemIdsToDelete = cart.items.map((i) => i.id);
+
+        const variantIds = cart.items
+          .map((i) => i.variantId)
+          .filter((id): id is string => Boolean(id));
+        const variants =
+          variantIds.length > 0
+            ? await prisma.productVariant.findMany({
+                where: { id: { in: variantIds }, isActive: true },
+              })
+            : [];
+        const varMap = new Map(variants.map((v) => [v.id, v]));
+
+        for (const item of cart.items) {
+          const variant = item.variantId ? varMap.get(item.variantId) : null;
+          resolvedItems.push({
+            productId: item.productId,
+            variantId: variant?.id || null,
+            quantity: item.quantity,
+            product: {
+              id: item.product.id,
+              name: item.product.name,
+              nameAr: item.product.nameAr,
+              price: item.product.price,
+              sku: item.product.sku,
+              sellerId: item.product.sellerId,
+              inventoryQuantity: item.product.inventory?.quantity || 999,
+            },
+            variant,
+          });
+        }
+      }
+    }
+
+    if (resolvedItems.length === 0) {
       return apiError("Cart is empty", 400);
     }
 
-    const variantIds = cart.items
-      .map((item) => item.variantId)
-      .filter((id): id is string => Boolean(id));
-    const variants =
-      variantIds.length > 0
-        ? await prisma.productVariant.findMany({
-            where: { id: { in: variantIds }, isActive: true },
-          })
-        : [];
-    const variantMap = new Map(
-      variants.map((variant) => [variant.id, variant])
-    );
+    // 3. Resolve Upsell Product (if customer accepted OTO upsell)
+    let upsellProductRecord: {
+      id: string;
+      name: string;
+      nameAr: string;
+      sku: string;
+      sellerId: string;
+    } | null = null;
 
-    for (const item of cart.items) {
-      const variant = item.variantId
-        ? variantMap.get(item.variantId)
-        : undefined;
-      if (
-        item.variantId &&
-        (!variant || variant.productId !== item.productId)
-      ) {
-        return apiError(`Selected option is unavailable for ${item.product.name}`, 400);
-      }
-      const productStock = item.product.inventory?.quantity || 0;
-      const stock = variant
-        ? Math.min(productStock, variant.stock)
-        : productStock;
-      if (stock < item.quantity) {
-        return apiError(`Insufficient stock for ${item.product.name}`, 400);
+    if (data.upsellProductId) {
+      const p = await prisma.product.findUnique({
+        where: { id: data.upsellProductId, status: "APPROVED" },
+      });
+      if (p) {
+        upsellProductRecord = {
+          id: p.id,
+          name: p.name,
+          nameAr: p.nameAr,
+          sku: p.sku,
+          sellerId: p.sellerId,
+        };
       }
     }
 
-    const subtotal = cart.items.reduce(
-      (sum, item) => {
-        const variant = item.variantId
-          ? variantMap.get(item.variantId)
-          : undefined;
-        return sum + (variant?.price ?? item.product.price) * item.quantity;
-      },
+    // 4. Calculate Volumes & Pricing Strictly According to Rules:
+    // 1 item: 199 SAR
+    // 2 items: 279 SAR
+    // 3 items: 349 SAR
+    // Upsell: 99 SAR
+    const regularItemCount = resolvedItems.reduce(
+      (sum, i) => sum + i.quantity,
       0
     );
+    const regularTierPrice = calculateTierPrice(regularItemCount);
+    const regularStandardSubtotal = regularItemCount * PRODUCT_UNIT_PRICE;
+    const regularDiscount = Math.max(0, regularStandardSubtotal - regularTierPrice);
 
-    const itemCount = cartItemCount(cart.items);
-    const beforeCoupon = quoteOfferTotals(subtotal, itemCount);
-    let couponDiscount = 0;
-    let couponId: string | undefined;
-    let incrementCouponId: string | undefined;
+    const hasUpsell = Boolean(upsellProductRecord);
+    const upsellPrice = hasUpsell ? UPSELL_SPECIAL_PRICE : 0;
 
-    if (data.couponCode) {
-      const coupon = await prisma.coupon.findUnique({
-        where: { code: data.couponCode },
-      });
-      if (coupon?.isActive) {
-        couponDiscount = calculateDiscount(
-          beforeCoupon.total,
-          coupon.discountType,
-          coupon.discountValue,
-          coupon.maxDiscount
-        );
-        couponId = coupon.id;
-        incrementCouponId = coupon.id;
-      }
-    } else if (cart.coupon) {
-      couponDiscount = calculateDiscount(
-        beforeCoupon.total,
-        cart.coupon.discountType,
-        cart.coupon.discountValue,
-        cart.coupon.maxDiscount
-      );
-      couponId = cart.coupon.id;
-    }
-
-    const offer = quoteOfferTotals(subtotal, itemCount, couponDiscount);
-    const discount = offer.discount;
-    const shippingCost = offer.shippingCost;
-    const total = offer.total;
+    const subtotal = regularStandardSubtotal + upsellPrice;
+    const discount = regularDiscount;
+    const shippingCost = FREE_SHIPPING_COST;
+    const total = regularTierPrice + upsellPrice;
     const currency = getCurrencyForCountry(data.shippingAddress.country);
 
+    // 5. Execute DB Transaction
     const order = await prisma.$transaction(async (tx) => {
-      // Claiming the cart rows first serializes concurrent submissions of the
-      // same cart: the losing request deletes nothing and rolls back.
-      const claimed = await tx.cartItem.deleteMany({
-        where: { cartId: cart.id, id: { in: cart.items.map((item) => item.id) } },
-      });
-      if (claimed.count !== cart.items.length) {
-        throw new CheckoutError("This order has already been submitted", 409);
+      // Clear DB cart if applicable
+      if (cartIdToDelete && cartItemIdsToDelete.length > 0) {
+        await tx.cartItem.deleteMany({
+          where: {
+            cartId: cartIdToDelete,
+            id: { in: cartItemIdsToDelete },
+          },
+        });
       }
 
-      if (incrementCouponId) {
-        await tx.coupon.update({
-          where: { id: incrementCouponId },
-          data: { usedCount: { increment: 1 } },
+      // Build Order Items
+      const orderItemsData = resolvedItems.map((item) => ({
+        productId: item.productId,
+        sellerId: item.product.sellerId,
+        variantId: item.variantId || undefined,
+        name: item.product.name,
+        nameAr: item.product.nameAr,
+        sku: item.variant?.sku ?? item.product.sku,
+        price: PRODUCT_UNIT_PRICE,
+        quantity: item.quantity,
+        total: PRODUCT_UNIT_PRICE * item.quantity,
+      }));
+
+      // Add Upsell as distinct line item if present
+      if (upsellProductRecord) {
+        orderItemsData.push({
+          productId: upsellProductRecord.id,
+          sellerId: upsellProductRecord.sellerId,
+          variantId: undefined,
+          name: `${upsellProductRecord.name} (عرض خاص)`,
+          nameAr: `${upsellProductRecord.nameAr} (عرض خاص 99 ريال)`,
+          sku: upsellProductRecord.sku,
+          price: UPSELL_SPECIAL_PRICE,
+          quantity: 1,
+          total: UPSELL_SPECIAL_PRICE,
         });
       }
 
       const newOrder = await tx.order.create({
         data: {
           orderNumber: generateOrderNumber(),
-          userId: auth.user.userId,
+          userId,
           paymentMethod: data.paymentMethod,
           paymentStatus: "PENDING",
           subtotal,
@@ -192,84 +332,95 @@ export async function POST(request: NextRequest) {
           discount,
           total,
           currency,
-          couponId,
           shippingAddress: data.shippingAddress,
           notes: data.notes,
-          estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+          estimatedDelivery: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days
           items: {
-            create: cart.items.map((item) => {
-              const variant = item.variantId
-                ? variantMap.get(item.variantId)
-                : undefined;
-              const unitPrice = variant?.price ?? item.product.price;
-              return {
-                productId: item.productId,
-                sellerId: item.product.sellerId,
-                variantId: item.variantId || undefined,
-                name: item.product.name,
-                nameAr: item.product.nameAr,
-                sku: variant?.sku ?? item.product.sku,
-                price: unitPrice,
-                quantity: item.quantity,
-                total: unitPrice * item.quantity,
-              };
-            }),
+            create: orderItemsData,
           },
           statusHistory: {
-            create: { status: "PENDING", note: "Order placed" },
+            create: { status: "PENDING", note: "Order placed via COD" },
           },
         },
-        include: { items: true },
+        include: {
+          items: {
+            include: {
+              product: {
+                include: { images: { where: { isPrimary: true }, take: 1 } },
+              },
+            },
+          },
+        },
       });
 
-      for (const item of cart.items) {
-        const inventoryUpdate = await tx.inventory.updateMany({
-          where: {
-            productId: item.productId,
-            quantity: { gte: item.quantity },
-          },
-          data: { quantity: { decrement: item.quantity } },
-        });
-        if (inventoryUpdate.count !== 1) {
-          throw new CheckoutError(`Insufficient stock for ${item.product.name}`);
-        }
-
-        if (item.variantId) {
-          const variantUpdate = await tx.productVariant.updateMany({
-            where: {
-              id: item.variantId,
-              productId: item.productId,
-              isActive: true,
-              stock: { gte: item.quantity },
-            },
-            data: { stock: { decrement: item.quantity } },
-          });
-          if (variantUpdate.count !== 1) {
-            throw new CheckoutError(`Selected option is unavailable for ${item.product.name}`);
-          }
-        }
+      // Update sold counts
+      for (const item of resolvedItems) {
         await tx.product.update({
           where: { id: item.productId },
           data: { soldCount: { increment: item.quantity } },
         });
       }
-
-      await tx.notification.create({
-        data: {
-          userId: auth.user.userId,
-          title: "Order Placed",
-          titleAr: "تم تأكيد الطلب",
-          message: `Your order ${newOrder.orderNumber} has been placed`,
-          messageAr: `تم تأكيد طلبك رقم ${newOrder.orderNumber}`,
-          type: "order",
-          link: `/dashboard/customer/orders/${newOrder.id}`,
-        },
-      });
+      if (upsellProductRecord) {
+        await tx.product.update({
+          where: { id: upsellProductRecord.id },
+          data: { soldCount: { increment: 1 } },
+        });
+      }
 
       return newOrder;
     });
 
-    return apiSuccess(order, 201);
+    // 6. Send Order to Google Sheet Webhook / Log
+    const sheetItems: SheetOrderItem[] = resolvedItems.map((item) => ({
+      name: item.product.nameAr || item.product.name,
+      quantity: item.quantity,
+      price: PRODUCT_UNIT_PRICE,
+      isUpsell: false,
+    }));
+    if (upsellProductRecord) {
+      sheetItems.push({
+        name: upsellProductRecord.nameAr || upsellProductRecord.name,
+        quantity: 1,
+        price: UPSELL_SPECIAL_PRICE,
+        isUpsell: true,
+      });
+    }
+
+    const sheetPayload = {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt.toISOString(),
+      customerName,
+      customerPhone: rawPhone,
+      city: data.shippingAddress.city || "المملكة العربية السعودية",
+      country: data.shippingAddress.country,
+      items: sheetItems,
+      hasUpsell,
+      upsellProduct: upsellProductRecord
+        ? upsellProductRecord.nameAr || upsellProductRecord.name
+        : undefined,
+      subtotal,
+      discount,
+      shipping: 0,
+      total,
+      paymentMethod: "COD",
+      status: "PENDING",
+    };
+    after(() => appendOrderToGoogleSheet(sheetPayload, "order.created"));
+
+    // 7. Return Success with Access Token Cookie for Guest Session
+    const response = apiSuccess(order, 201);
+    if (authCookieToken) {
+      response.cookies.set("access_token", authCookieToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: "/",
+      });
+    }
+
+    return response;
   } catch (error) {
     if (error instanceof CheckoutError) {
       return apiError(error.message, error.status);

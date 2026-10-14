@@ -20,7 +20,7 @@ export function Header() {
   const th = useTranslations("header");
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { count } = useCart();
+  const { count, openCart } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [categories, setCategories] = useState<{ slug: string; name: string; nameAr: string }[]>([]);
@@ -116,12 +116,18 @@ export function Header() {
               </Link>
             )}
 
-            <Link href={`/${locale}/cart`} className="relative rounded-lg p-2 hover:bg-slate-800" title={t("cart")}>
+            <button
+              type="button"
+              onClick={openCart}
+              className="relative rounded-lg p-2 hover:bg-slate-800"
+              title={t("cart")}
+              aria-label={t("cart")}
+            >
               <ShoppingCart className="h-5 w-5" />
               {count > 0 && (
                 <span className="absolute -top-1 -end-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-slate-900">{count}</span>
               )}
-            </Link>
+            </button>
 
             <div className="relative">
               <button onClick={() => setShowUserMenu(!showUserMenu)} className="rounded-lg p-2 hover:bg-slate-800" aria-label={t("account")}>

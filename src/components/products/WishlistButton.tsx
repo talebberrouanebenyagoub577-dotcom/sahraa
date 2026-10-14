@@ -5,6 +5,7 @@ import { Heart, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { useLocale, useTranslations } from "next-intl";
+import { useAuth } from "@/lib/context/AuthContext";
 
 interface WishlistButtonProps {
   productId: string;
@@ -15,10 +16,15 @@ export function WishlistButton({ productId, className }: WishlistButtonProps) {
   const locale = useLocale();
   const t = useTranslations("product");
   const tc = useTranslations("common");
+  const { user } = useAuth();
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!user) {
+      setActive(false);
+      return;
+    }
     fetch(`/api/wishlist?productId=${encodeURIComponent(productId)}`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => {
@@ -27,7 +33,7 @@ export function WishlistButton({ productId, className }: WishlistButtonProps) {
         }
       })
       .catch(() => {});
-  }, [productId]);
+  }, [productId, user]);
 
   const toggle = async (e: React.MouseEvent) => {
     e.preventDefault();

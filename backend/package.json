@@ -1,0 +1,37 @@
+{
+  "name": "sahraa-api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "migrate": "tsx src/migrate.ts",
+    "lint": "tsc --noEmit --pretty false",
+    "test:phone": "tsx src/lib/tracking/phone.test.ts",
+    "test:fraud": "tsx src/lib/fraud/fraud.test.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "ioredis": "^5.11.1",
+    "jsonwebtoken": "^9.0.3",
+    "maxmind": "^5.0.7",
+    "next": "15.5.19",
+    "pg": "^8.16.0",
+    "prisma": "^6.19.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "tailwind-merge": "^3.6.0",
+    "tsx": "^4.22.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20",
+    "@types/pg": "^8.15.4",
+    "typescript": "^5"
+  }
+}

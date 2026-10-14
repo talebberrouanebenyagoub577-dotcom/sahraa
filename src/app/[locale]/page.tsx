@@ -1,4 +1,6 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
+import Link from "next/link";
+import { CheckCircle2, Star } from "lucide-react";
 import { HeroBanner } from "@/components/home/HeroBanner";
 import { HomeOfferBanner } from "@/components/home/HomeOfferBanner";
 import { ProductSection } from "@/components/home/ProductSection";
@@ -87,7 +89,7 @@ async function getHomeData() {
     orderBy: { createdAt: "desc" },
     include: {
       user: { select: { firstName: true, lastName: true } },
-      product: { select: { name: true, nameAr: true } },
+      product: { select: { name: true, nameAr: true, slug: true } },
     },
   });
 
@@ -183,24 +185,68 @@ export default async function HomePage({
       </div>
 
       {data.reviews.length > 0 && (
-        <section className="py-10">
+        <section className="border-t border-slate-100 bg-slate-50/70 py-12">
           <div className="mx-auto max-w-7xl px-4">
-            <h2 className="mb-6 text-xl font-bold md:text-2xl">{t("reviews")}</h2>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="mb-8 text-center sm:text-start">
+              <h2 className="text-xl font-bold text-slate-900 md:text-3xl">
+                {t("reviews")}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {t("reviewsSubtitle")}
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {data.reviews.map((review) => (
                 <div
                   key={review.id}
-                  className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+                  className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <div className="mb-2 flex text-amber-400">
-                    {"★".repeat(review.rating)}
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex text-amber-400">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-4 w-4 ${
+                              star <= review.rating
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-slate-200"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {t("verifiedBuyer")}
+                      </span>
+                    </div>
+
+                    {review.title && (
+                      <h3 className="mt-3 font-semibold text-slate-900 line-clamp-1">
+                        {review.title}
+                      </h3>
+                    )}
+
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600 line-clamp-3">
+                      {review.comment}
+                    </p>
                   </div>
-                  <p className="text-sm text-slate-600 line-clamp-3">
-                    {review.comment}
-                  </p>
-                  <p className="mt-3 text-xs font-medium text-slate-900">
-                    {review.user.firstName} {review.user.lastName}
-                  </p>
+
+                  <div className="mt-5 border-t border-slate-100 pt-3">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-semibold text-slate-800">
+                        {review.user.firstName} {review.user.lastName}
+                      </span>
+                      <Link
+                        href={`/${locale}/products/${review.product.slug}`}
+                        className="truncate text-amber-600 hover:text-amber-700 max-w-[160px]"
+                      >
+                        {locale === "ar"
+                          ? review.product.nameAr
+                          : review.product.name}
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

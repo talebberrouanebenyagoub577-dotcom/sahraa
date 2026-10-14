@@ -461,24 +461,39 @@ export async function AmazonProductPage({
       : product.slug === "car-battery-remote-disconnect-switch"
         ? [
             {
-              src: "/products/car-battery-remote-disconnect-switch/product.jpg",
-              title: t("batterySwitchMedia.productTitle"),
-              description: t("batterySwitchMedia.productDescription"),
+              src: "/products/car-battery-remote-disconnect-switch/main.jpg",
+              title: t("batterySwitchMedia.mainTitle"),
+              description: t("batterySwitchMedia.mainDescription"),
             },
             {
-              src: "/products/car-battery-remote-disconnect-switch/remotes.jpg",
-              title: t("batterySwitchMedia.remotesTitle"),
-              description: t("batterySwitchMedia.remotesDescription"),
+              src: "/products/car-battery-remote-disconnect-switch/features.jpg",
+              title: t("batterySwitchMedia.featuresTitle"),
+              description: t("batterySwitchMedia.featuresDescription"),
+              contain: true,
             },
             {
-              src: "/products/car-battery-remote-disconnect-switch/installation.jpg",
-              title: t("batterySwitchMedia.installationTitle"),
-              description: t("batterySwitchMedia.installationDescription"),
+              src: "/products/car-battery-remote-disconnect-switch/kit.jpg",
+              title: t("batterySwitchMedia.kitTitle"),
+              description: t("batterySwitchMedia.kitDescription"),
+              contain: true,
             },
             {
-              src: "/products/car-battery-remote-disconnect-switch/remote-control.jpg",
-              title: t("batterySwitchMedia.remoteControlTitle"),
-              description: t("batterySwitchMedia.remoteControlDescription"),
+              src: "/products/car-battery-remote-disconnect-switch/voltage-display.jpg",
+              title: t("batterySwitchMedia.displayTitle"),
+              description: t("batterySwitchMedia.displayDescription"),
+              contain: true,
+            },
+            {
+              src: "/products/car-battery-remote-disconnect-switch/manual.jpg",
+              title: t("batterySwitchMedia.manualTitle"),
+              description: t("batterySwitchMedia.manualDescription"),
+              contain: true,
+            },
+            {
+              src: "/products/car-battery-remote-disconnect-switch/wiring.jpg",
+              title: t("batterySwitchMedia.wiringTitle"),
+              description: t("batterySwitchMedia.wiringDescription"),
+              contain: true,
             },
           ]
       : product.slug === "oswei-disposable-toilet-cleaning-wand"
@@ -695,6 +710,12 @@ export async function AmazonProductPage({
 
           <ProductActions
             productId={product.id}
+            productInfo={{
+              name: product.name,
+              nameAr: product.nameAr,
+              slug: product.slug,
+              image: product.images[0]?.url,
+            }}
             variants={product.variants}
             inStock={inStock}
             inventoryQuantity={stock}

@@ -22,7 +22,7 @@ const STATIC_PAGES = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sahraa.com";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sahraaaaaaaaaaa.shop";
 
   const staticEntries = SUPPORTED_LOCALES.flatMap((locale) =>
     STATIC_PAGES.map((page) => ({

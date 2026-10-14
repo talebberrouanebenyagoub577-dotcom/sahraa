@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
-import { Check, Loader2, Minus, Plus, Zap } from "lucide-react";
+import { Check, Minus, Plus, Zap, ShieldCheck, Truck } from "lucide-react";
 import toast from "react-hot-toast";
 import { AddToCartButton } from "./AddToCartButton";
 import { Button } from "@/components/ui/button";
@@ -25,8 +24,16 @@ interface Variant {
   isActive: boolean;
 }
 
+interface ProductInfo {
+  name: string;
+  nameAr?: string | null;
+  slug: string;
+  image?: string;
+}
+
 interface ProductActionsProps {
   productId: string;
+  productInfo?: ProductInfo;
   variants: Variant[];
   inStock: boolean;
   inventoryQuantity: number;
@@ -36,6 +43,7 @@ interface ProductActionsProps {
 
 export function ProductActions({
   productId,
+  productInfo,
   variants,
   inStock,
   inventoryQuantity,
@@ -43,12 +51,11 @@ export function ProductActions({
   compareAtPrice,
 }: ProductActionsProps) {
   const locale = useLocale();
-  const router = useRouter();
+  const isAr = locale === "ar";
   const t = useTranslations("product");
-  const { refresh } = useCart();
+  const { addItem, openCheckout } = useCart();
   const [selectedVariantId, setSelectedVariantId] = useState<string>();
   const [quantity, setQuantity] = useState(1);
-  const [buying, setBuying] = useState(false);
 
   const selectedVariant = useMemo(
     () => variants.find((variant) => variant.id === selectedVariantId),
@@ -63,6 +70,7 @@ export function ProductActions({
     inStock &&
     availableStock > 0 &&
     (!requiresVariant || Boolean(selectedVariant));
+
   const quantityOffer = useMemo(
     () => quoteOfferTotals(selectedPrice * quantity, quantity),
     [quantity, selectedPrice]
@@ -82,34 +90,22 @@ export function ProductActions({
     return true;
   };
 
-  const buyNow = async () => {
-    if (!validateSelection() || buying) return;
-    setBuying(true);
-    try {
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId,
-          variantId: selectedVariantId,
-          quantity,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        await refresh();
-        router.push(`/${locale}/checkout`);
-      } else if (res.status === 401) {
-        toast.error(t("loginFirst"));
-        router.push(`/${locale}/auth/login`);
-      } else {
-        toast.error(data.error || t("purchaseFailed"));
-      }
-    } catch {
-      toast.error(t("purchaseFailed"));
-    } finally {
-      setBuying(false);
-    }
+  const buyNow = () => {
+    if (!validateSelection()) return;
+    addItem(
+      {
+        id: productId,
+        name: productInfo?.name || "منتج صحرا",
+        nameAr: productInfo?.nameAr || "منتج صحرا",
+        slug: productInfo?.slug || productId,
+        image: productInfo?.image || "/placeholder.png",
+        price: selectedPrice,
+      },
+      selectedVariantId,
+      quantity,
+      false // Do not open drawer, directly open checkout popup!
+    );
+    openCheckout();
   };
 
   const actions = (mobile = false) => (
@@ -121,23 +117,25 @@ export function ProductActions({
         size="lg"
         className="min-w-0 flex-1"
         disabled={!canPurchase}
+        productDetails={{
+          id: productId,
+          name: productInfo?.name || "منتج صحرا",
+          nameAr: productInfo?.nameAr || "منتج صحرا",
+          slug: productInfo?.slug || productId,
+          image: productInfo?.image || "/placeholder.png",
+          price: selectedPrice,
+        }}
         onError={() => undefined}
       />
       <Button
         type="button"
         size="lg"
-        variant="outline"
-        className="min-w-0 flex-1 border-amber-500 text-amber-600 hover:bg-amber-50"
+        className="min-w-0 flex-1 bg-amber-500 font-extrabold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20"
         onClick={buyNow}
-        disabled={!canPurchase || buying}
-        aria-busy={buying}
+        disabled={!canPurchase}
       >
-        {buying ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Zap className="h-4 w-4" />
-        )}
-        {t("buyNow")}
+        <Zap className="h-4 w-4" />
+        {isAr ? "اطلب الآن (دفع عند الاستلام)" : t("buyNow")}
       </Button>
     </div>
   );
@@ -152,51 +150,38 @@ export function ProductActions({
               *
             </span>
           </legend>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="flex flex-wrap gap-2">
             {variants.map((variant) => {
-              const active = selectedVariantId === variant.id;
-              const unavailable = variant.stock < 1;
-              const label =
-                locale === "ar" ? variant.nameAr || variant.name : variant.name;
+              const active = variant.id === selectedVariantId;
+              const disabled = variant.stock < 1;
               return (
                 <button
                   key={variant.id}
                   type="button"
                   onClick={() => selectVariant(variant)}
-                  disabled={unavailable}
-                  aria-pressed={active}
+                  disabled={disabled}
                   className={cn(
-                    "relative flex min-h-12 items-center gap-2 rounded-xl border px-3 py-2 text-start text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
+                    "relative flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition-all",
                     active
-                      ? "border-amber-500 bg-amber-50 text-slate-950"
-                      : "border-slate-200 hover:border-amber-400",
-                    unavailable && "cursor-not-allowed opacity-45"
+                      ? "border-amber-500 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
+                    disabled && "cursor-not-allowed opacity-40"
                   )}
+                  aria-pressed={active}
                 >
                   {variant.colorHex && (
                     <span
-                      className="h-5 w-5 shrink-0 rounded-full border border-black/15"
+                      className="h-4 w-4 rounded-full border border-black/10"
                       style={{ backgroundColor: variant.colorHex }}
                       aria-hidden="true"
                     />
                   )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{label}</span>
-                    {(variant.size || variant.color) && (
-                      <span className="block truncate text-xs text-slate-500">
-                        {[variant.color, variant.size].filter(Boolean).join(" · ")}
-                      </span>
-                    )}
-                    {variant.price != null && (
-                      <span className="block text-xs font-semibold text-amber-600">
-                        {formatPrice(variant.price, "SAR", locale)}
-                      </span>
-                    )}
+                  <span>
+                    {isAr
+                      ? variant.nameAr || variant.name
+                      : variant.name}
                   </span>
-                  {active && <Check className="h-4 w-4 shrink-0 text-amber-600" />}
-                  {unavailable && (
-                    <span className="absolute inset-x-1 top-1/2 h-px -rotate-6 bg-slate-400" />
-                  )}
+                  {active && <Check className="h-3.5 w-3.5 text-amber-600" />}
                 </button>
               );
             })}
@@ -267,10 +252,31 @@ export function ProductActions({
         </div>
       </div>
 
-      <p className="mt-3 text-sm font-medium text-amber-800">{t("offerBody")}</p>
+      {/* Volume Tier Incentive Box */}
+      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-slate-800">
+        <div className="font-bold text-amber-900 mb-1">
+          {isAr ? "💡 باقات التوفير الحصرية الشاملة للتوصيل:" : "Exclusive Bundle Savings:"}
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 text-center font-semibold pt-1">
+          <div className="rounded-lg bg-white p-2 border border-amber-200/60 shadow-sm">
+            <span className="block text-[11px] text-slate-500">{isAr ? "منتج واحد" : "1 Item"}</span>
+            <span className="font-black text-slate-900">199 ر.س</span>
+          </div>
+          <div className="rounded-lg bg-white p-2 border border-amber-300 shadow-sm relative overflow-hidden">
+            <span className="block text-[11px] text-slate-500">{isAr ? "منتجان" : "2 Items"}</span>
+            <span className="font-black text-amber-700">279 ر.س</span>
+          </div>
+          <div className="rounded-lg bg-amber-500/20 p-2 border border-amber-400 shadow-sm">
+            <span className="block text-[11px] text-amber-900 font-bold">{isAr ? "3 منتجات" : "3 Items"}</span>
+            <span className="font-black text-amber-900">349 ر.س</span>
+          </div>
+        </div>
+      </div>
+
       {quantityOffer.discount > 0 && (
-        <p className="mt-1 text-sm font-semibold text-emerald-700">
-          {formatPrice(quantityOffer.total, "SAR", locale)}
+        <p className="mt-2 text-sm font-bold text-emerald-700 flex items-center gap-1.5">
+          <span>{isAr ? "الإجمالي مع خصم الباقة:" : "Total with bundle discount:"}</span>
+          <span className="text-base font-extrabold">{formatPrice(quantityOffer.total, "SAR", locale)}</span>
         </p>
       )}
 
@@ -282,16 +288,9 @@ export function ProductActions({
 
       {actions()}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-slate-950/95 p-3 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
-          <div className="shrink-0">
-            <p className="text-xs text-slate-400">{t("price")}</p>
-            <p className="font-bold text-white">
-              {formatPrice(quantityOffer.total, "SAR", locale)}
-            </p>
-          </div>
-          {actions(true)}
-        </div>
+      {/* Floating Sticky Buy Bar for Mobile CRO */}
+      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur shadow-2xl sm:hidden">
+        {actions(true)}
       </div>
     </div>
   );
