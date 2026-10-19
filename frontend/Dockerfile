@@ -5,6 +5,10 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
+# package-lock.json is generated with npm 11 (Node 24 locally).
+# node:20-alpine ships npm 10.8.2, which fails `npm ci` on the nested
+# @swc/helpers 0.5.15 (next) vs 0.5.23 (@swc/core / next-intl) resolution.
+RUN npm install -g npm@11.12.1
 RUN npm ci
 
 FROM base AS builder
