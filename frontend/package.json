@@ -7,6 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "test:media": "tsx src/lib/media.test.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

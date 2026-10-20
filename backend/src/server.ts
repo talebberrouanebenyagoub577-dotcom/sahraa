@@ -1,5 +1,6 @@
+import { createReadStream } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { NextRequest } from "next/server";
@@ -7,6 +8,7 @@ import { handleHealth } from "@/health";
 import { handleRoot } from "@/root";
 import { handleTrack } from "@/v1/track";
 import { handleSheetSync } from "@/v1/sheet-sync";
+import { resolveUploadPath, UPLOAD_MIME } from "@/lib/uploads";
 
 type RouteHandler = (request: NextRequest, context: { params: Promise<Record<string, string>> }) => Promise<Response>;
 
@@ -142,6 +144,33 @@ async function main() {
       if (url.pathname === "/health" && req.method === "GET") {
         await writeResponse(req, res, await handleHealth());
         return;
+      }
+
+      if ((req.method === "GET" || req.method === "HEAD") && url.pathname.startsWith("/uploads/")) {
+        const filePath = resolveUploadPath(url.pathname);
+        if (!filePath) {
+          await writeResponse(req, res, new Response(JSON.stringify({ success: false, error: "Not found" }), { status: 404, headers: { "Content-Type": "application/json" } }));
+          return;
+        }
+        try {
+          const info = await stat(filePath);
+          if (!info.isFile()) throw new Error("not a file");
+          const mime = UPLOAD_MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream";
+          res.writeHead(200, {
+            "Content-Type": mime,
+            "Content-Length": info.size,
+            "Cache-Control": "public, max-age=31536000, immutable",
+          });
+          if (req.method === "HEAD") {
+            res.end();
+            return;
+          }
+          createReadStream(filePath).pipe(res);
+          return;
+        } catch {
+          await writeResponse(req, res, new Response(JSON.stringify({ success: false, error: "Not found" }), { status: 404, headers: { "Content-Type": "application/json" } }));
+          return;
+        }
       }
 
       const body = await readBody(req);

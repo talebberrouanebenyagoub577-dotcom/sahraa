@@ -13,6 +13,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { mediaUrl } from "@/lib/media";
 
 type GalleryImage = {
   id: string;
@@ -32,22 +33,23 @@ export function ProductGallery({
   productName: string;
 }) {
   const t = useTranslations("product");
+  const gallery = images.map((image) => ({ ...image, url: mediaUrl(image.url) }));
   const [activeIndex, setActiveIndex] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const touchStartX = useRef<number | null>(null);
-  const activeImage = images[activeIndex];
+  const activeImage = gallery[activeIndex];
 
   const previous = useCallback(() => {
     setShowVideo(false);
-    setActiveIndex((index) => (index === 0 ? images.length - 1 : index - 1));
-  }, [images.length]);
+    setActiveIndex((index) => (index === 0 ? gallery.length - 1 : index - 1));
+  }, [gallery.length]);
 
   const next = useCallback(() => {
     setShowVideo(false);
-    setActiveIndex((index) => (index === images.length - 1 ? 0 : index + 1));
-  }, [images.length]);
+    setActiveIndex((index) => (index === gallery.length - 1 ? 0 : index + 1));
+  }, [gallery.length]);
 
   useEffect(() => {
     if (!lightboxOpen) return;
@@ -69,7 +71,7 @@ export function ProductGallery({
   };
 
   const onTouchEnd = (event: React.TouchEvent) => {
-    if (touchStartX.current === null || images.length < 2) return;
+    if (touchStartX.current === null || gallery.length < 2) return;
     const distance = event.changedTouches[0].clientX - touchStartX.current;
     if (Math.abs(distance) > 45) {
       if (distance > 0) previous();
@@ -127,12 +129,12 @@ export function ProductGallery({
     <>
       <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-col-reverse gap-3 sm:flex-row">
-        {(images.length > 1 || videoUrl) && (
+        {(gallery.length > 1 || videoUrl) && (
           <div
             className="flex shrink-0 gap-2 overflow-x-auto pb-1 sm:w-[72px] sm:flex-col sm:overflow-y-auto sm:overflow-x-hidden"
             aria-label={t("galleryThumbnails")}
           >
-            {images.map((image, index) => (
+            {gallery.map((image, index) => (
               <button
                 key={image.id}
                 type="button"
@@ -208,7 +210,7 @@ export function ProductGallery({
             </button>
           )}
 
-          {!showVideo && images.length > 1 && (
+          {!showVideo && gallery.length > 1 && (
             <>
               <button
                 type="button"
@@ -227,7 +229,7 @@ export function ProductGallery({
                 <ChevronRight className="h-5 w-5 rtl:rotate-180" />
               </button>
               <span className="absolute bottom-3 start-3 rounded-full bg-black/60 px-2.5 py-1 text-xs text-white">
-                {activeIndex + 1}/{images.length}
+                {activeIndex + 1}/{gallery.length}
               </span>
             </>
           )}
@@ -271,7 +273,7 @@ export function ProductGallery({
             <X className="h-6 w-6" />
           </button>
           <div className="relative h-[85vh] w-[92vw]">{mediaFrame(true)}</div>
-          {images.length > 1 && (
+          {gallery.length > 1 && (
             <>
               <button
                 type="button"

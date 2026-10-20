@@ -10,6 +10,7 @@ import { AddToCartButton } from "./AddToCartButton";
 import { WishlistButton } from "./WishlistButton";
 import { Currency } from "@/lib/enums";
 import { getLocalizedName } from "@/lib/i18n/display";
+import { mediaUrl } from "@/lib/media";
 import type { Locale } from "@/lib/constants";
 
 interface ProductCardProps {
@@ -24,7 +25,7 @@ interface ProductCardProps {
     reviewCount: number;
     codAvailable: boolean;
     isFlashDeal?: boolean;
-    images?: { url: string }[];
+    images?: { url: string; isPrimary?: boolean }[];
     inventory?: { quantity: number } | null;
   };
   currency?: Currency;
@@ -35,7 +36,9 @@ export function ProductCard({ product, currency = Currency.SAR }: ProductCardPro
   const t = useTranslations("common");
   const tp = useTranslations("product");
   const name = getLocalizedName(product, locale);
-  const image = product.images?.[0]?.url || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop";
+  const image =
+    mediaUrl(product.images?.find((item) => item.isPrimary)?.url || product.images?.[0]?.url) ||
+    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop";
   const discount = product.compareAtPrice
     ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
     : 0;

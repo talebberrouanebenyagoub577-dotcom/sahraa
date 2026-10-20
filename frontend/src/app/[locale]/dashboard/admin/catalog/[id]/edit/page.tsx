@@ -37,9 +37,15 @@ export default function AdminEditProductPage() {
           quantity: p.inventory?.quantity ?? 0,
           codAvailable: p.codAvailable,
           status: p.status,
-          imageLines: (p.images as { url: string }[] | undefined)
-            ?.map((i) => i.url)
-            .join("\n"),
+          seoTitle: p.seoTitle || "",
+          seoTitleAr: p.seoTitleAr || "",
+          seoKeywords: Array.isArray(p.seoKeywords) ? p.seoKeywords.join("، ") : "",
+          images: ((p.images as { url: string; isPrimary?: boolean }[] | undefined) || []).map(
+            (image, index) => ({
+              url: image.url,
+              isPrimary: image.isPrimary ?? index === 0,
+            }),
+          ),
         });
       });
   }, [id]);

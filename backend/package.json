@@ -10,6 +10,8 @@
     "test:root": "tsx src/root.test.ts",
     "test:phone": "tsx src/lib/tracking/phone.test.ts",
     "test:fraud": "tsx src/lib/fraud/fraud.test.ts",
+    "test:uploads": "tsx src/lib/uploads.test.ts",
+    "test:catalog-images": "tsx src/lib/admin/catalog-images.test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -1,41 +1,79 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import { mediaUrl } from "@/lib/media";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatPrice } from "@/lib/utils";
 import { getLocalizedName } from "@/lib/i18n/display";
 import type { Locale } from "@/lib/constants";
 import toast from "react-hot-toast";
 
+type CatalogRow = {
+  id: string;
+  name: string;
+  nameAr: string;
+  price: number;
+  status: string;
+  sku: string;
+  categoryId: string;
+  category?: { name: string; nameAr: string };
+  inventory?: { quantity: number } | null;
+  images?: { url: string; isPrimary?: boolean }[];
+};
+
 export default function AdminCatalogPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations("dashboard");
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<CatalogRow[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; nameAr: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [status, setStatus] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQ(q), 400);
+    return () => clearTimeout(timer);
+  }, [q]);
 
   const load = useCallback(() => {
     setLoading(true);
-    apiFetch("/api/admin/catalog/products")
+    const params = new URLSearchParams();
+    if (debouncedQ.trim()) params.set("q", debouncedQ.trim());
+    if (status) params.set("status", status);
+    if (categoryId) params.set("categoryId", categoryId);
+    const query = params.toString();
+    apiFetch(`/api/admin/catalog/products${query ? `?${query}` : ""}`)
       .then((r) => r.json())
       .then((d) => setProducts(d.data || []))
       .finally(() => setLoading(false));
-  }, []);
+  }, [debouncedQ, status, categoryId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const setStatus = async (id: string, status: string) => {
+  useEffect(() => {
+    apiFetch("/api/admin/catalog/categories")
+      .then((r) => r.json())
+      .then((d) => setCategories(d.data || []))
+      .catch(() => null);
+  }, []);
+
+  const setProductStatus = async (id: string, next: string) => {
     const res = await apiFetch(`/api/admin/catalog/products/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status: next }),
     });
     if (res.ok) {
       toast.success(t("updated"));
@@ -64,18 +102,73 @@ export default function AdminCatalogPage() {
         </Link>
       </div>
 
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("searchProducts")}
+        />
+        <select
+          className="rounded-lg border p-2 text-sm"
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+        >
+          <option value="">{t("filterAllCategories")}</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {getLocalizedName(category, locale)}
+            </option>
+          ))}
+        </select>
+        <select
+          className="rounded-lg border p-2 text-sm"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="">{t("filterAllStatuses")}</option>
+          <option value="APPROVED">{t("statusApproved")}</option>
+          <option value="DRAFT">{t("statusDraft")}</option>
+          <option value="ARCHIVED">{t("statusArchived")}</option>
+        </select>
+      </div>
+
       {!loading && products.length === 0 ? (
         <p className="text-slate-500">{t("noCatalogProducts")}</p>
       ) : (
         <DataTable
           loading={loading}
-          data={products}
+          data={products as unknown as Record<string, unknown>[]}
           columns={[
+            {
+              key: "image",
+              label: t("productPhotos"),
+              render: (r) => {
+                const images = (r.images as CatalogRow["images"]) || [];
+                const url = mediaUrl(images.find((image) => image.isPrimary)?.url || images[0]?.url);
+                return url ? (
+                  <Image src={url} alt="" width={48} height={48} className="h-12 w-12 rounded-lg object-cover" unoptimized />
+                ) : (
+                  "—"
+                );
+              },
+            },
             {
               key: "name",
               label: t("colProduct"),
+              render: (r) => getLocalizedName(r as { name: string; nameAr: string }, locale),
+            },
+            {
+              key: "sku",
+              label: "SKU",
+              render: (r) => String(r.sku || "—"),
+            },
+            {
+              key: "category",
+              label: t("categoriesNav"),
               render: (r) =>
-                getLocalizedName(r as { name: string; nameAr: string }, locale),
+                r.category
+                  ? getLocalizedName(r.category as { name: string; nameAr: string }, locale)
+                  : "—",
             },
             {
               key: "price",
@@ -85,8 +178,7 @@ export default function AdminCatalogPage() {
             {
               key: "stock",
               label: t("quantity"),
-              render: (r) =>
-                String((r.inventory as { quantity: number } | null)?.quantity ?? 0),
+              render: (r) => String((r.inventory as { quantity: number } | null)?.quantity ?? 0),
             },
             {
               key: "status",
@@ -98,7 +190,7 @@ export default function AdminCatalogPage() {
               label: "",
               render: (r) => {
                 const id = String(r.id);
-                const status = String(r.status);
+                const current = String(r.status);
                 return (
                   <div className="flex flex-wrap gap-1">
                     <Link href={`/${locale}/dashboard/admin/catalog/${id}/edit`}>
@@ -106,12 +198,12 @@ export default function AdminCatalogPage() {
                         {t("editProduct")}
                       </Button>
                     </Link>
-                    {status === "APPROVED" ? (
-                      <Button size="sm" variant="outline" onClick={() => setStatus(id, "DRAFT")}>
+                    {current === "APPROVED" ? (
+                      <Button size="sm" variant="outline" onClick={() => setProductStatus(id, "DRAFT")}>
                         {t("unpublishProduct")}
                       </Button>
                     ) : (
-                      <Button size="sm" onClick={() => setStatus(id, "APPROVED")}>
+                      <Button size="sm" onClick={() => setProductStatus(id, "APPROVED")}>
                         {t("publishProduct")}
                       </Button>
                     )}

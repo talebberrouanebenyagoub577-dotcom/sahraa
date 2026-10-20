@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import { getAuthFromRequest, requireRole, ADMIN_ROLES } from "@/lib/auth/middleware";
+import { isAdminAuth, requireAdmin } from "@/lib/auth/require-admin";
+import { publicUploadUrl } from "@/lib/uploads";
 import { apiSuccess, apiError, handleApiError } from "@/lib/api/response";
 
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -10,10 +11,8 @@ const MAX_SIZE = 5 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = getAuthFromRequest(request);
-    if (!auth || !requireRole(auth, ADMIN_ROLES)) {
-      return apiError("Unauthorized", 401);
-    }
+    const auth = requireAdmin(request);
+    if (!isAdminAuth(auth)) return auth;
 
     const formData = await request.formData();
     const file = formData.get("file");
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(uploadDir, filename), buffer);
 
-    const url = `/uploads/products/${filename}`;
+    const url = publicUploadUrl(request, `/uploads/products/${filename}`);
     return apiSuccess({ url }, 201);
   } catch (error) {
     return handleApiError(error);

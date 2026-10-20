@@ -1,13 +1,18 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import { mediaUrl } from "@/lib/media";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { getLocalizedName } from "@/lib/i18n/display";
+import type { Locale } from "@/lib/constants";
 import toast from "react-hot-toast";
 import { PRODUCT_UNIT_PRICE } from "@/lib/pricing";
+
+type CatalogImage = { url: string; isPrimary: boolean };
 
 export type AdminProductFormValues = {
   name: string;
@@ -21,7 +26,10 @@ export type AdminProductFormValues = {
   quantity: number;
   codAvailable: boolean;
   status: "APPROVED" | "DRAFT" | "ARCHIVED";
-  imageLines: string;
+  images: CatalogImage[];
+  seoTitle: string;
+  seoTitleAr: string;
+  seoKeywords: string;
 };
 
 const emptyForm: AdminProductFormValues = {
@@ -35,17 +43,12 @@ const emptyForm: AdminProductFormValues = {
   sku: "",
   quantity: 0,
   codAvailable: true,
-  status: "APPROVED",
-  imageLines: "",
+  status: "DRAFT",
+  images: [],
+  seoTitle: "",
+  seoTitleAr: "",
+  seoKeywords: "",
 };
-
-function parseImages(lines: string) {
-  return lines
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((url) => ({ url }));
-}
 
 export function AdminProductForm({
   initial,
@@ -56,32 +59,39 @@ export function AdminProductForm({
   productId?: string;
   onSuccess: () => void;
 }) {
+  const locale = useLocale() as Locale;
   const t = useTranslations("dashboard");
   const tc = useTranslations("common");
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; nameAr: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<AdminProductFormValues>({ ...emptyForm, ...initial });
 
-  const imageUrls = parseImages(form.imageLines);
+  const setField = <K extends keyof AdminProductFormValues>(key: K, value: AdminProductFormValues[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
 
-  const appendImageUrl = (url: string) => {
+  const appendImage = (url: string) => {
     setForm((prev) => ({
       ...prev,
-      imageLines: prev.imageLines.trim()
-        ? `${prev.imageLines.trim()}\n${url}`
-        : url,
+      images: [...prev.images, { url, isPrimary: prev.images.length === 0 }],
     }));
   };
 
-  const removeImageUrl = (url: string) => {
+  const removeImage = (url: string) => {
+    setForm((prev) => {
+      const images = prev.images.filter((image) => image.url !== url);
+      if (images.length && !images.some((image) => image.isPrimary)) {
+        images[0] = { ...images[0], isPrimary: true };
+      }
+      return { ...prev, images };
+    });
+  };
+
+  const setPrimary = (url: string) => {
     setForm((prev) => ({
       ...prev,
-      imageLines: prev.imageLines
-        .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l && l !== url)
-        .join("\n"),
+      images: prev.images.map((image) => ({ ...image, isPrimary: image.url === url })),
     }));
   };
 
@@ -95,11 +105,10 @@ export function AdminProductForm({
       const res = await apiFetch("/api/admin/catalog/upload", {
         method: "POST",
         body,
-        credentials: "include",
       });
       const data = await res.json();
       if (res.ok && data.data?.url) {
-        appendImageUrl(data.data.url);
+        appendImage(data.data.url);
         ok++;
       } else {
         toast.error(data.error || t("uploadFailed"));
@@ -110,7 +119,7 @@ export function AdminProductForm({
   };
 
   useEffect(() => {
-    apiFetch("/api/categories")
+    apiFetch("/api/admin/catalog/categories")
       .then((r) => r.json())
       .then((d) => setCategories(d.data || []));
   }, []);
@@ -118,7 +127,6 @@ export function AdminProductForm({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const images = parseImages(form.imageLines);
     const payload = {
       name: form.name,
       nameAr: form.nameAr,
@@ -126,13 +134,18 @@ export function AdminProductForm({
       descriptionAr: form.descriptionAr,
       categoryId: form.categoryId,
       price: Number(form.price),
-      compareAtPrice:
-        form.compareAtPrice === "" ? undefined : Number(form.compareAtPrice),
+      compareAtPrice: form.compareAtPrice === "" ? undefined : Number(form.compareAtPrice),
       sku: form.sku,
       quantity: Number(form.quantity),
       codAvailable: form.codAvailable,
       status: form.status,
-      images: images.length ? images : undefined,
+      seoTitle: form.seoTitle || undefined,
+      seoTitleAr: form.seoTitleAr || undefined,
+      seoKeywords: form.seoKeywords
+        .split(/[,،]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      images: form.images.length ? form.images : undefined,
     };
 
     const url = productId
@@ -150,113 +163,125 @@ export function AdminProductForm({
       onSuccess();
     } else {
       const d = await res.json();
-      alert(d.error || "Error");
+      toast.error(d.error || tc("error"));
     }
     setLoading(false);
   };
 
   return (
-    <form onSubmit={submit} className="max-w-2xl space-y-4 rounded-xl border bg-white p-6">
-      <Input
-        placeholder={t("nameEn")}
-        value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
-        required
-      />
-      <Input
-        placeholder={t("nameAr")}
-        value={form.nameAr}
-        onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
-        required
-      />
-      <textarea
-        className="w-full rounded-lg border p-3 text-sm"
-        rows={3}
-        placeholder={t("description")}
-        value={form.description}
-        onChange={(e) => setForm({ ...form, description: e.target.value })}
-        required
-      />
-      <textarea
-        className="w-full rounded-lg border p-3 text-sm"
-        rows={3}
-        placeholder={t("descriptionAr")}
-        value={form.descriptionAr}
-        onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
-        required
-      />
-      <select
-        className="w-full rounded-lg border p-2"
-        value={form.categoryId}
-        onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-        required
-      >
-        <option value="">{t("selectCategory")}</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          type="number"
-          step="0.01"
-          placeholder={t("colPrice")}
-          value={form.price || ""}
-          onChange={(e) => setForm({ ...form, price: +e.target.value })}
-          required
-        />
-        <Input
-          type="number"
-          step="0.01"
-          placeholder={t("compareAtPrice")}
-          value={form.compareAtPrice}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              compareAtPrice: e.target.value === "" ? "" : +e.target.value,
-            })
-          }
-        />
+    <form onSubmit={submit} className="max-w-3xl space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block text-sm font-medium">
+          {t("nameAr")}
+          <Input className="mt-1" value={form.nameAr} onChange={(e) => setField("nameAr", e.target.value)} required dir="rtl" />
+        </label>
+        <label className="block text-sm font-medium">
+          {t("nameEn")}
+          <Input className="mt-1" value={form.name} onChange={(e) => setField("name", e.target.value)} required dir="ltr" />
+        </label>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          placeholder="SKU"
-          value={form.sku}
-          onChange={(e) => setForm({ ...form, sku: e.target.value })}
+
+      <label className="block text-sm font-medium">
+        {t("descriptionAr")}
+        <textarea
+          className="mt-1 w-full rounded-lg border p-3 text-sm"
+          rows={4}
+          value={form.descriptionAr}
+          onChange={(e) => setField("descriptionAr", e.target.value)}
           required
+          dir="rtl"
         />
-        <Input
-          type="number"
-          placeholder={t("quantity")}
-          value={form.quantity || ""}
-          onChange={(e) => setForm({ ...form, quantity: +e.target.value })}
-          required
-        />
-      </div>
-      <select
-        className="w-full rounded-lg border p-2"
-        value={form.status}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            status: e.target.value as AdminProductFormValues["status"],
-          })
-        }
-      >
-        <option value="APPROVED">{t("statusApproved")}</option>
-        <option value="DRAFT">{t("statusDraft")}</option>
-        <option value="ARCHIVED">{t("statusArchived")}</option>
-      </select>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={form.codAvailable}
-          onChange={(e) => setForm({ ...form, codAvailable: e.target.checked })}
-        />
-        {t("codAvailable")}
       </label>
+      <label className="block text-sm font-medium">
+        {t("description")}
+        <textarea
+          className="mt-1 w-full rounded-lg border p-3 text-sm"
+          rows={4}
+          value={form.description}
+          onChange={(e) => setField("description", e.target.value)}
+          required
+          dir="ltr"
+        />
+      </label>
+
+      <label className="block text-sm font-medium">
+        {t("selectCategory")}
+        <select
+          className="mt-1 w-full rounded-lg border p-2"
+          value={form.categoryId}
+          onChange={(e) => setField("categoryId", e.target.value)}
+          required
+        >
+          <option value="">{t("selectCategory")}</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {getLocalizedName(category, locale)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block text-sm font-medium">
+          {t("colPrice")}
+          <Input
+            className="mt-1"
+            type="number"
+            step="0.01"
+            value={form.price || ""}
+            onChange={(e) => setField("price", +e.target.value)}
+            required
+          />
+        </label>
+        <label className="block text-sm font-medium">
+          {t("compareAtPrice")}
+          <Input
+            className="mt-1"
+            type="number"
+            step="0.01"
+            value={form.compareAtPrice}
+            onChange={(e) => setField("compareAtPrice", e.target.value === "" ? "" : +e.target.value)}
+          />
+        </label>
+        <label className="block text-sm font-medium">
+          SKU
+          <Input className="mt-1" value={form.sku} onChange={(e) => setField("sku", e.target.value)} required dir="ltr" />
+        </label>
+        <label className="block text-sm font-medium">
+          {t("quantity")}
+          <Input
+            className="mt-1"
+            type="number"
+            value={form.quantity || ""}
+            onChange={(e) => setField("quantity", +e.target.value)}
+            required
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block text-sm font-medium">
+          {tc("status")}
+          <select
+            className="mt-1 w-full rounded-lg border p-2"
+            value={form.status}
+            onChange={(e) => setField("status", e.target.value as AdminProductFormValues["status"])}
+          >
+            <option value="DRAFT">{t("statusDraft")}</option>
+            <option value="APPROVED">{t("statusApproved")}</option>
+            <option value="ARCHIVED">{t("statusArchived")}</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={form.codAvailable}
+            onChange={(e) => setField("codAvailable", e.target.checked)}
+          />
+          {t("codAvailable")}
+        </label>
+      </div>
+
       <div className="space-y-3">
         <p className="text-sm font-medium text-slate-700">{t("productPhotos")}</p>
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center hover:border-amber-400">
@@ -276,33 +301,57 @@ export function AdminProductForm({
           </span>
           <span className="mt-1 text-xs text-slate-400">PNG, JPG, WebP — 5MB</span>
         </label>
-        {imageUrls.length > 0 && (
+        {form.images.length > 0 && (
           <div className="flex flex-wrap gap-3">
-            {imageUrls.map(({ url }) => (
-              <div key={url} className="relative h-24 w-24 overflow-hidden rounded-lg border">
-                <Image src={url} alt="" fill className="object-cover" unoptimized />
+            {form.images.map((image) => (
+              <div key={image.url} className="relative h-28 w-28 overflow-hidden rounded-lg border">
+                <Image src={mediaUrl(image.url)} alt="" fill className="object-cover" unoptimized />
                 <button
                   type="button"
-                  className="absolute right-1 top-1 rounded bg-black/60 px-1.5 text-xs text-white"
-                  onClick={() => removeImageUrl(url)}
+                  className="absolute end-1 top-1 rounded bg-black/60 px-1.5 text-xs text-white"
+                  onClick={() => removeImage(image.url)}
                 >
                   ×
+                </button>
+                <button
+                  type="button"
+                  className={`absolute inset-x-1 bottom-1 rounded px-1 py-0.5 text-[10px] ${
+                    image.isPrimary ? "bg-amber-500 text-white" : "bg-black/60 text-white"
+                  }`}
+                  onClick={() => setPrimary(image.url)}
+                >
+                  {image.isPrimary ? t("primaryImage") : t("setPrimaryImage")}
                 </button>
               </div>
             ))}
           </div>
         )}
-        <details className="text-sm text-slate-500">
-          <summary className="cursor-pointer">{t("imageUrlsHint")}</summary>
-          <textarea
-            className="mt-2 w-full rounded-lg border p-3 font-mono text-xs"
-            rows={3}
-            value={form.imageLines}
-            onChange={(e) => setForm({ ...form, imageLines: e.target.value })}
-          />
-        </details>
       </div>
-      <Button type="submit" disabled={loading}>
+
+      <details className="rounded-xl border border-slate-100 p-4">
+        <summary className="cursor-pointer text-sm font-medium">{t("seoSection")}</summary>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium">
+            {t("seoTitleAr")}
+            <Input className="mt-1" value={form.seoTitleAr} onChange={(e) => setField("seoTitleAr", e.target.value)} />
+          </label>
+          <label className="block text-sm font-medium">
+            {t("seoTitle")}
+            <Input className="mt-1" value={form.seoTitle} onChange={(e) => setField("seoTitle", e.target.value)} dir="ltr" />
+          </label>
+        </div>
+        <label className="mt-4 block text-sm font-medium">
+          {t("seoKeywords")}
+          <Input
+            className="mt-1"
+            value={form.seoKeywords}
+            onChange={(e) => setField("seoKeywords", e.target.value)}
+            placeholder={t("seoKeywordsHint")}
+          />
+        </label>
+      </details>
+
+      <Button type="submit" disabled={loading || uploading}>
         {productId ? tc("save") : tc("create")}
       </Button>
     </form>

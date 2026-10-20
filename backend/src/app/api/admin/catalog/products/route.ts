@@ -1,31 +1,53 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { getAuthFromRequest, requireRole, ADMIN_ROLES } from "@/lib/auth/middleware";
-import { apiSuccess, apiError, handleApiError } from "@/lib/api/response";
+import { isAdminAuth, requireAdmin } from "@/lib/auth/require-admin";
+import { apiSuccess, handleApiError } from "@/lib/api/response";
 import { cacheDel } from "@/lib/redis";
 import { slugify } from "@/lib/utils";
 import { createProductSchema } from "@/lib/validations/product";
 import { getPlatformSellerId } from "@/lib/admin/platform-seller";
-import { ProductStatus } from "@prisma/client";
+import { catalogImageRows } from "@/lib/admin/catalog-images";
+import { ProductStatus, type Prisma } from "@prisma/client";
 import { z } from "zod";
+
+const catalogImageSchema = z.object({
+  url: z.string().min(1),
+  alt: z.string().optional(),
+  isPrimary: z.boolean().optional(),
+});
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = getAuthFromRequest(request);
-    if (!auth || !requireRole(auth, ADMIN_ROLES)) return apiError("Unauthorized", 401);
+    const auth = requireAdmin(request);
+    if (!isAdminAuth(auth)) return auth;
 
     const sellerId = await getPlatformSellerId();
-    const status = new URL(request.url).searchParams.get("status") as ProductStatus | null;
+    const params = new URL(request.url).searchParams;
+    const status = params.get("status") as ProductStatus | null;
+    const categoryId = params.get("categoryId")?.trim() || null;
+    const q = params.get("q")?.trim() || null;
+
+    const where: Prisma.ProductWhereInput = {
+      sellerId,
+      ...(status && Object.values(ProductStatus).includes(status) ? { status } : {}),
+      ...(categoryId ? { categoryId } : {}),
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { nameAr: { contains: q, mode: "insensitive" } },
+              { sku: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
 
     const products = await prisma.product.findMany({
-      where: {
-        sellerId,
-        ...(status ? { status } : {}),
-      },
+      where,
       include: {
-        images: { orderBy: { sortOrder: "asc" } },
+        images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
         inventory: true,
-        category: { select: { name: true, nameAr: true, slug: true } },
+        category: { select: { id: true, name: true, nameAr: true, slug: true } },
       },
       orderBy: { updatedAt: "desc" },
     });
@@ -39,11 +61,12 @@ export async function GET(request: NextRequest) {
 const adminCreateSchema = createProductSchema
   .omit({ images: true })
   .extend({
-    images: z
-      .array(z.object({ url: z.string().min(1), alt: z.string().optional() }))
-      .optional(),
+    images: z.array(catalogImageSchema).optional(),
     status: z.enum(["APPROVED", "DRAFT", "ARCHIVED"]).default("APPROVED"),
     quantity: z.number().int().min(0).default(0),
+    seoTitle: z.string().max(200).optional(),
+    seoTitleAr: z.string().max(200).optional(),
+    seoKeywords: z.array(z.string().max(80)).max(30).optional(),
     isFeatured: z.boolean().optional(),
     isTrending: z.boolean().optional(),
     isNewArrival: z.boolean().optional(),
@@ -52,12 +75,13 @@ const adminCreateSchema = createProductSchema
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = getAuthFromRequest(request);
-    if (!auth || !requireRole(auth, ADMIN_ROLES)) return apiError("Unauthorized", 401);
+    const auth = requireAdmin(request);
+    if (!isAdminAuth(auth)) return auth;
 
     const body = await request.json();
     const data = adminCreateSchema.parse(body);
     const sellerId = await getPlatformSellerId();
+    const imageRows = data.images?.length ? catalogImageRows(data.images) : undefined;
 
     const product = await prisma.product.create({
       data: {
@@ -68,6 +92,9 @@ export async function POST(request: NextRequest) {
         slug: `${slugify(data.name)}-${Date.now().toString(36)}`,
         description: data.description,
         descriptionAr: data.descriptionAr,
+        seoTitle: data.seoTitle,
+        seoTitleAr: data.seoTitleAr,
+        seoKeywords: data.seoKeywords ?? [],
         price: data.price,
         compareAtPrice: data.compareAtPrice,
         sku: data.sku,
@@ -77,16 +104,7 @@ export async function POST(request: NextRequest) {
         isTrending: data.isTrending ?? false,
         isNewArrival: data.isNewArrival ?? false,
         isFlashDeal: data.isFlashDeal ?? false,
-        images: data.images?.length
-          ? {
-              create: data.images.map((img, i) => ({
-                url: img.url,
-                alt: img.alt,
-                isPrimary: i === 0,
-                sortOrder: i,
-              })),
-            }
-          : undefined,
+        images: imageRows?.length ? { create: imageRows } : undefined,
         inventory: {
           create: {
             quantity: data.quantity,
