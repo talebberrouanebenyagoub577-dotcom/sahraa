@@ -129,6 +129,21 @@ enum CommissionStatus {
   CANCELLED
 }
 
+enum ReturnStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  AWAITING_RECEIPT
+  RECEIVED
+  REFUNDED
+  COMPLETED
+}
+
+enum ReturnShippingBearer {
+  CUSTOMER
+  STORE
+}
+
 // ─── User & Auth ─────────────────────────────────────────────────────────────
 
 model User {
@@ -167,6 +182,7 @@ model User {
   referralsGiven    Referral[] @relation("Referrer")
   referralsReceived Referral[] @relation("Referred")
   affiliate         Affiliate?
+  returnRequests    ReturnRequest[]
   refreshTokens     RefreshToken[]
   savedForLater     SavedForLater[]
 
@@ -464,7 +480,7 @@ model Order {
   items           OrderItem[]
   statusHistory   OrderStatusHistory[]
   commission      Commission?
-  returnRequest   ReturnRequest?
+  returnRequests  ReturnRequest[]
   otp             OrderOtp?
 
   @@index([userId])
@@ -539,13 +555,63 @@ model OrderStatusHistory {
 }
 
 model ReturnRequest {
-  id        String   @id @default(cuid())
-  orderId   String   @unique
-  order     Order    @relation(fields: [orderId], references: [id])
-  reason    String
-  status    String   @default("pending")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String                @id @default(cuid())
+  orderId            String
+  order              Order                 @relation(fields: [orderId], references: [id])
+  userId             String
+  user               User                  @relation(fields: [userId], references: [id])
+  reason             String
+  description        String?               @db.Text
+  images             String[]              @default([])
+  status             ReturnStatus          @default(PENDING_REVIEW)
+  goodsAmount        Float                 @default(0)
+  returnShippingCost Float                 @default(0)
+  shippingBearer     ReturnShippingBearer  @default(CUSTOMER)
+  deductShipping     Boolean               @default(true)
+  shippingDeducted   Float                 @default(0)
+  refundAmount       Float                 @default(0)
+  adminReason        String?
+  internalNotes      String?               @db.Text
+  restockedAt        DateTime?
+  reviewedById       String?
+  reviewedAt         DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  items  ReturnItem[]
+  refund ReturnRefund?
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ReturnItem {
+  id               String        @id @default(cuid())
+  returnRequestId  String
+  returnRequest    ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItemId      String
+  productId        String
+  name             String
+  nameAr           String?
+  sku              String
+  unitPrice        Float
+  quantity         Int
+  lineTotal        Float
+  acceptedQuantity Int?
+}
+
+model ReturnRefund {
+  id              String        @id @default(cuid())
+  returnRequestId String        @unique
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id])
+  amount          Float
+  method          String        @default("MANUAL_COD")
+  reference       String
+  recordedById    String
+  recordedAt      DateTime      @default(now())
+  notes           String?
 }
 
 // ─── Addresses ───────────────────────────────────────────────────────────────
@@ -831,6 +897,10 @@ model SiteSettings {
   instagramUrl    String?
   youtubeUrl      String?
   twitterUrl      String?
+  returnShippingCostDefault Float   @default(0)
+  returnShippingBearer      String  @default("CUSTOMER")
+  returnDeductShipping      Boolean @default(true)
+  returnWindowDays          Int     @default(14)
   updatedAt       DateTime @updatedAt
   updatedBy       String?
 }

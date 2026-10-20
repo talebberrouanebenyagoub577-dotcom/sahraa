@@ -20,6 +20,7 @@ import {
   Plus,
   LayoutGrid,
   LogOut,
+  RotateCcw,
 } from "lucide-react";
 
 interface NavItem {
@@ -32,6 +33,7 @@ interface NavItem {
 const customerNav: NavItem[] = [
   { href: "/dashboard/customer", key: "overview", icon: LayoutDashboard },
   { href: "/dashboard/customer/orders", key: "orders", icon: ShoppingCart },
+  { href: "/dashboard/customer/returns", key: "returns", icon: RotateCcw },
   { href: "/dashboard/customer/addresses", key: "addresses", icon: Package },
   { href: "/dashboard/customer/wishlist", key: "wishlist", icon: Gift },
   { href: "/dashboard/customer/support", key: "support", icon: MessageSquare },
@@ -52,6 +54,7 @@ const adminPrimaryNav: NavItem[] = [
   { href: "/dashboard/admin/catalog", key: "products", icon: Package },
   { href: "/dashboard/admin/catalog/new", key: "addProduct", icon: Plus },
   { href: "/dashboard/admin/orders", key: "orders", icon: ShoppingCart },
+  { href: "/dashboard/admin/returns", key: "productReturns", icon: RotateCcw },
   { href: "/dashboard/admin/categories", key: "categoriesNav", icon: LayoutGrid },
 ];
 

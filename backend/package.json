@@ -13,6 +13,7 @@
     "test:uploads": "tsx src/lib/uploads.test.ts",
     "test:catalog-images": "tsx src/lib/admin/catalog-images.test.ts",
     "test:catalog-product": "tsx src/lib/admin/catalog-product-schema.test.ts",
+    "test:returns": "tsx src/lib/returns/refund.test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

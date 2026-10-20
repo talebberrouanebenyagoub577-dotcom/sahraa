@@ -18,6 +18,10 @@ export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
   instagramUrl: null,
   youtubeUrl: null,
   twitterUrl: null,
+  returnShippingCostDefault: 0,
+  returnShippingBearer: "CUSTOMER",
+  returnDeductShipping: true,
+  returnWindowDays: 14,
 };
 
 export async function getSiteSettings(): Promise<SiteSettingsData> {

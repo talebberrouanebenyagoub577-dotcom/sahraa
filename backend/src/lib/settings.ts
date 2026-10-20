@@ -18,6 +18,10 @@ export const DEFAULT_SITE_SETTINGS: Omit<SiteSettings, "updatedAt" | "updatedBy"
   instagramUrl: null,
   youtubeUrl: null,
   twitterUrl: null,
+  returnShippingCostDefault: 0,
+  returnShippingBearer: "CUSTOMER",
+  returnDeductShipping: true,
+  returnWindowDays: 14,
 };
 
 export type PublicSiteSettings = SiteSettings;
@@ -67,6 +71,10 @@ export function serializeSiteSettings(settings: PublicSiteSettings) {
     instagramUrl: settings.instagramUrl,
     youtubeUrl: settings.youtubeUrl,
     twitterUrl: settings.twitterUrl,
+    returnShippingCostDefault: settings.returnShippingCostDefault,
+    returnShippingBearer: settings.returnShippingBearer,
+    returnDeductShipping: settings.returnDeductShipping,
+    returnWindowDays: settings.returnWindowDays,
     updatedAt: settings.updatedAt.toISOString(),
   };
 }

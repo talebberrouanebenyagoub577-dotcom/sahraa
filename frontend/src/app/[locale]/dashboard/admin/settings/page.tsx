@@ -28,6 +28,10 @@ const emptySettings: SiteSettingsData = {
   instagramUrl: null,
   youtubeUrl: null,
   twitterUrl: null,
+  returnShippingCostDefault: 0,
+  returnShippingBearer: "CUSTOMER",
+  returnDeductShipping: true,
+  returnWindowDays: 14,
 };
 
 export default function AdminSettingsPage() {
@@ -305,6 +309,52 @@ export default function AdminSettingsPage() {
                 />
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-white p-6">
+          <h2 className="mb-4 text-lg font-semibold">{t("returnPolicy")}</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block text-sm font-medium">
+              {t("returnShippingCostDefault")}
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                className="mt-1"
+                value={form.returnShippingCostDefault ?? 0}
+                onChange={(e) => setForm((prev) => ({ ...prev, returnShippingCostDefault: Number(e.target.value) }))}
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              {t("returnWhoPays")}
+              <select
+                className="mt-1 w-full rounded-lg border p-2"
+                value={form.returnShippingBearer || "CUSTOMER"}
+                onChange={(e) => setForm((prev) => ({ ...prev, returnShippingBearer: e.target.value }))}
+              >
+                <option value="CUSTOMER">{t("returnBearerCustomer")}</option>
+                <option value="STORE">{t("returnBearerStore")}</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium md:col-span-2">
+              <input
+                type="checkbox"
+                checked={form.returnDeductShipping !== false}
+                onChange={(e) => setForm((prev) => ({ ...prev, returnDeductShipping: e.target.checked }))}
+              />
+              {t("returnDeductShipping")}
+            </label>
+            <label className="block text-sm font-medium">
+              {t("returnWindowDays")}
+              <Input
+                type="number"
+                min={1}
+                className="mt-1"
+                value={form.returnWindowDays ?? 14}
+                onChange={(e) => setForm((prev) => ({ ...prev, returnWindowDays: Number(e.target.value) }))}
+              />
+            </label>
           </div>
         </section>
 

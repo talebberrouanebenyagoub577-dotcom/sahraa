@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useLocale } from "next-intl";
+import Link from "next/link";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,9 +48,16 @@ export default function OrderDetailPage() {
           <h1 className="text-2xl font-bold">{String(order.orderNumber)}</h1>
           <Badge className="mt-2">{String(order.status)}</Badge>
         </div>
-        {["PENDING", "CONFIRMED"].includes(String(order.status)) && (
-          <Button variant="destructive" onClick={cancel}>{isRtl ? "إلغاء الطلب" : "Cancel Order"}</Button>
-        )}
+        <div className="flex gap-2">
+          {String(order.status) === "DELIVERED" && (
+            <Link href={`/${locale}/dashboard/customer/returns`}>
+              <Button variant="outline">{isRtl ? "إرجاع منتج" : "Return item"}</Button>
+            </Link>
+          )}
+          {["PENDING", "CONFIRMED"].includes(String(order.status)) && (
+            <Button variant="destructive" onClick={cancel}>{isRtl ? "إلغاء الطلب" : "Cancel Order"}</Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

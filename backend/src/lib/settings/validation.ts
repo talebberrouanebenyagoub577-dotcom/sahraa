@@ -46,6 +46,10 @@ export const updateSiteSettingsSchema = z.object({
   instagramUrl: optionalUrl,
   youtubeUrl: optionalUrl,
   twitterUrl: optionalUrl,
+  returnShippingCostDefault: z.number().min(0).optional(),
+  returnShippingBearer: z.enum(["CUSTOMER", "STORE"]).optional(),
+  returnDeductShipping: z.boolean().optional(),
+  returnWindowDays: z.number().int().min(1).max(365).optional(),
 });
 
 export type UpdateSiteSettingsInput = z.infer<typeof updateSiteSettingsSchema>;

@@ -18,6 +18,10 @@ export interface SiteSettingsData {
   instagramUrl: string | null;
   youtubeUrl: string | null;
   twitterUrl: string | null;
+  returnShippingCostDefault?: number;
+  returnShippingBearer?: string;
+  returnDeductShipping?: boolean;
+  returnWindowDays?: number;
   updatedAt?: string;
 }
 
