@@ -3,7 +3,7 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Search, ShoppingCart, Heart, Bell, User, Menu, LogOut } from "lucide-react";
+import { Search, ShoppingCart, Heart, Bell, User, Menu, LogOut, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useRouter, usePathname } from "next/navigation";
@@ -20,8 +20,10 @@ export function Header() {
   const pathname = usePathname();
   const t = useTranslations("common");
   const th = useTranslations("header");
+  const td = useTranslations("dashboard");
   const router = useRouter();
   const { user, logout } = useAuth();
+  const isStoreAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
   const { count, openCart } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -105,6 +107,16 @@ export function Header() {
               <Heart className="h-5 w-5" />
             </Link>
 
+            {isStoreAdmin && (
+              <Link
+                href={`/${locale}/dashboard/admin/catalog/new`}
+                className="flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-2 text-xs font-bold text-slate-900 hover:bg-amber-400 sm:px-3 sm:text-sm"
+              >
+                <Plus className="h-4 w-4" />
+                <span>{td("addProduct")}</span>
+              </Link>
+            )}
+
             {user && (
               <Link href={`/${locale}/dashboard/customer/notifications`} className="relative rounded-lg p-2 hover:bg-slate-800" title={t("notifications")}>
                 <Bell className="h-5 w-5" />
@@ -139,6 +151,15 @@ export function Header() {
                       <Link href={dashboardLink} className="block px-4 py-2 text-sm hover:bg-slate-800" onClick={() => setShowUserMenu(false)}>
                         {t("account")}
                       </Link>
+                      {isStoreAdmin && (
+                        <Link
+                          href={`/${locale}/dashboard/admin/catalog/new`}
+                          className="block px-4 py-2 text-sm hover:bg-slate-800"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          {td("addProduct")}
+                        </Link>
+                      )}
                       <button onClick={() => { logout(); setShowUserMenu(false); }} className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-slate-800">
                         <LogOut className="h-4 w-4" />{t("logout")}
                       </button>

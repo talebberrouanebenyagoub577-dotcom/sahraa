@@ -18,6 +18,8 @@ import { formatPrice } from "@/lib/utils";
 import { getLocalizedName } from "@/lib/i18n/display";
 
 import type { Locale } from "@/lib/constants";
+import Link from "next/link";
+import { useAuth } from "@/lib/context/AuthContext";
 
 
 
@@ -26,6 +28,8 @@ export default function SellerProductsPage() {
   const locale = useLocale() as Locale;
 
   const t = useTranslations("dashboard");
+  const { user } = useAuth();
+  const isStoreAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
 
   const [products, setProducts] = useState([]);
 
@@ -52,6 +56,14 @@ export default function SellerProductsPage() {
         <h1 className="text-2xl font-bold">{t("myProducts")}</h1>
 
         <p className="mt-2 text-sm text-slate-600">{t("sellerProductsReadOnly")}</p>
+        {isStoreAdmin && (
+          <Link
+            href={`/${locale}/dashboard/admin/catalog/new`}
+            className="mt-4 inline-flex rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-slate-900 hover:bg-amber-400"
+          >
+            {t("addProduct")}
+          </Link>
+        )}
 
       </div>
 

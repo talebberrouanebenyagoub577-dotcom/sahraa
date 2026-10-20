@@ -102,9 +102,9 @@ function NavLinks({
             key={item.href}
             href={href}
             className={cn(
-              "flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-amber-500 text-white"
+              "flex shrink-0 items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
+              isActive || item.href === "/dashboard/admin/catalog/new"
+                ? "bg-amber-500 text-slate-900"
                 : "text-slate-300 hover:bg-slate-800 hover:text-white",
             )}
           >

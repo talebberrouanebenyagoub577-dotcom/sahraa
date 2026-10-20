@@ -97,8 +97,11 @@ export default function AdminCatalogPage() {
           <h1 className="text-2xl font-bold">{t("adminCatalog")}</h1>
           <p className="text-sm text-slate-500">{t("catalogSubtitle")}</p>
         </div>
-        <Link href={`/${locale}/dashboard/admin/catalog/new`}>
-          <Button>{t("addProduct")}</Button>
+        <Link
+          href={`/${locale}/dashboard/admin/catalog/new`}
+          className="inline-flex items-center rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-slate-900 hover:bg-amber-400"
+        >
+          {t("addProduct")}
         </Link>
       </div>
 
