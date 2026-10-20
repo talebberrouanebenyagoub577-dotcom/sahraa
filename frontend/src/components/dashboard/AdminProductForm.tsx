@@ -12,25 +12,9 @@ import { getLocalizedName } from "@/lib/i18n/display";
 import type { Locale } from "@/lib/constants";
 import toast from "react-hot-toast";
 import { PRODUCT_UNIT_PRICE } from "@/lib/pricing";
+import { catalogErrorMessage } from "@/lib/admin/catalog-error";
 
 type CatalogImage = { url: string; isPrimary: boolean };
-
-function catalogErrorMessage(
-  data: { error?: string; errors?: Record<string, unknown> },
-  skuExists: string,
-  fallback: string,
-) {
-  if (data.error === "SKU already exists") return skuExists;
-  const fieldErrors =
-    data.errors && typeof data.errors === "object"
-      ? Object.values(data.errors)
-          .flatMap((value) => (Array.isArray(value) ? value : []))
-          .filter((value): value is string => typeof value === "string")
-          .join(" · ")
-      : "";
-  if (fieldErrors) return `${data.error || fallback} — ${fieldErrors}`;
-  return data.error || fallback;
-}
 
 export type AdminProductFormValues = {
   name: string;

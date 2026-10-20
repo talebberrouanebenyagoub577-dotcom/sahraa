@@ -4,17 +4,10 @@ import { isAdminAuth, requireAdmin } from "@/lib/auth/require-admin";
 import { apiSuccess, handleApiError } from "@/lib/api/response";
 import { cacheDel } from "@/lib/redis";
 import { slugify } from "@/lib/utils";
-import { createProductSchema } from "@/lib/validations/product";
 import { getPlatformSellerId } from "@/lib/admin/platform-seller";
 import { catalogImageRows } from "@/lib/admin/catalog-images";
+import { adminCreateProductSchema } from "@/lib/admin/catalog-product-schema";
 import { ProductStatus, type Prisma } from "@prisma/client";
-import { z } from "zod";
-
-const catalogImageSchema = z.object({
-  url: z.string().min(1),
-  alt: z.string().optional(),
-  isPrimary: z.boolean().optional(),
-});
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,30 +51,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
-const adminCreateSchema = createProductSchema
-  .omit({ images: true })
-  .extend({
-    images: z.array(catalogImageSchema).optional(),
-    description: z.string().min(3),
-    descriptionAr: z.string().min(3),
-    status: z.enum(["APPROVED", "DRAFT", "ARCHIVED"]).default("APPROVED"),
-    quantity: z.number().int().min(0).default(0),
-    seoTitle: z.string().max(200).optional(),
-    seoTitleAr: z.string().max(200).optional(),
-    seoKeywords: z.array(z.string().max(80)).max(30).optional(),
-    isFeatured: z.boolean().optional(),
-    isTrending: z.boolean().optional(),
-    isNewArrival: z.boolean().optional(),
-    isFlashDeal: z.boolean().optional(),
-  });
-
 export async function POST(request: NextRequest) {
   try {
     const auth = requireAdmin(request);
     if (!isAdminAuth(auth)) return auth;
 
     const body = await request.json();
-    const data = adminCreateSchema.parse(body);
+    const data = adminCreateProductSchema.parse(body);
     const sellerId = await getPlatformSellerId();
     const imageRows = data.images?.length ? catalogImageRows(data.images) : undefined;
 

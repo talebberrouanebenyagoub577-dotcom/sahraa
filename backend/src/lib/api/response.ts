@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
+import { zodFieldErrors } from "./zod-errors";
 
 export function apiSuccess<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
@@ -19,7 +20,7 @@ export function apiError(
 
 export function handleApiError(error: unknown) {
   if (error instanceof ZodError) {
-    return apiError("Validation failed", 422, error.flatten().fieldErrors);
+    return apiError("Validation failed", 422, zodFieldErrors(error));
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") {
