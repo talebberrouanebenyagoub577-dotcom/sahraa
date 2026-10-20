@@ -4,7 +4,7 @@ import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { dashboardPath } from "@/lib/auth/dashboard-path";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
@@ -13,7 +13,6 @@ export default function LoginPage() {
   const locale = useLocale();
   const t = useTranslations("auth");
   const tc = useTranslations("common");
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
 
@@ -30,12 +29,7 @@ export default function LoginPage() {
       if (res.ok) {
         toast.success(tc("success"));
         const role = data.data?.user?.role;
-        const dest = role === "SUPER_ADMIN" || role === "ADMIN"
-          ? `/${locale}/dashboard/admin`
-          : role === "SELLER"
-            ? `/${locale}/dashboard/seller`
-            : `/${locale}/dashboard/customer`;
-        router.push(dest);
+        window.location.assign(dashboardPath(locale, role));
       } else {
         toast.error(data.error || tc("error"));
       }

@@ -1,6 +1,7 @@
 import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
 import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from "@/lib/constants";
+import { dashboardPath, isDashboardHome } from "@/lib/auth/dashboard-path";
 import { verifyAccessTokenEdge } from "@/lib/auth/edge-jwt";
 const intlMiddleware = createMiddleware({
   locales: SUPPORTED_LOCALES,
@@ -49,6 +50,10 @@ export default function middleware(request: NextRequest) {
   const isProtected = protectedRoutes.some((r) => pathWithoutLocale.startsWith(r));
   if (isProtected && !isOrderSuccess && !payload) {
     return NextResponse.redirect(new URL(`/${locale}/auth/login`, request.url));
+  }
+
+  if (isDashboardHome(pathWithoutLocale) && payload) {
+    return NextResponse.redirect(new URL(dashboardPath(locale, payload.role), request.url));
   }
 
   if (pathWithoutLocale.startsWith("/dashboard/admin") && payload) {

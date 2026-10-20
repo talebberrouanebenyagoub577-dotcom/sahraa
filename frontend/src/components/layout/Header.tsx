@@ -7,6 +7,7 @@ import { Search, ShoppingCart, Heart, Bell, User, Menu, LogOut } from "lucide-re
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useRouter, usePathname } from "next/navigation";
+import { dashboardPath } from "@/lib/auth/dashboard-path";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useCart } from "@/lib/context/CartContext";
 import { SiteLogo } from "@/components/settings/SiteLogo";
@@ -61,11 +62,7 @@ export function Header() {
     } else setSuggestions([]);
   };
 
-  const dashboardLink = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN"
-    ? `/${locale}/dashboard/admin`
-    : user?.role === "SELLER"
-      ? `/${locale}/dashboard/seller`
-      : `/${locale}/dashboard/customer`;
+  const dashboardLink = dashboardPath(locale, user?.role);
 
   return (
     <header className="sticky top-0 z-50 bg-slate-900 text-white shadow-lg">
