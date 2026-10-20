@@ -37,9 +37,6 @@ export default function AdminEditProductPage() {
           quantity: p.inventory?.quantity ?? 0,
           codAvailable: p.codAvailable,
           status: p.status,
-          seoTitle: p.seoTitle || "",
-          seoTitleAr: p.seoTitleAr || "",
-          seoKeywords: Array.isArray(p.seoKeywords) ? p.seoKeywords.join("، ") : "",
           images: ((p.images as { url: string; isPrimary?: boolean }[] | undefined) || []).map(
             (image, index) => ({
               url: image.url,

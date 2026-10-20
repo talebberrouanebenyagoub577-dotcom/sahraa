@@ -27,9 +27,6 @@ export type AdminProductFormValues = {
   codAvailable: boolean;
   status: "APPROVED" | "DRAFT" | "ARCHIVED";
   images: CatalogImage[];
-  seoTitle: string;
-  seoTitleAr: string;
-  seoKeywords: string;
 };
 
 const emptyForm: AdminProductFormValues = {
@@ -45,9 +42,6 @@ const emptyForm: AdminProductFormValues = {
   codAvailable: true,
   status: "DRAFT",
   images: [],
-  seoTitle: "",
-  seoTitleAr: "",
-  seoKeywords: "",
 };
 
 export function AdminProductForm({
@@ -139,12 +133,6 @@ export function AdminProductForm({
       quantity: Number(form.quantity),
       codAvailable: form.codAvailable,
       status: form.status,
-      seoTitle: form.seoTitle || undefined,
-      seoTitleAr: form.seoTitleAr || undefined,
-      seoKeywords: form.seoKeywords
-        .split(/[,،]/)
-        .map((item) => item.trim())
-        .filter(Boolean),
       images: form.images.length ? form.images : undefined,
     };
 
@@ -327,29 +315,6 @@ export function AdminProductForm({
           </div>
         )}
       </div>
-
-      <details className="rounded-xl border border-slate-100 p-4">
-        <summary className="cursor-pointer text-sm font-medium">{t("seoSection")}</summary>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium">
-            {t("seoTitleAr")}
-            <Input className="mt-1" value={form.seoTitleAr} onChange={(e) => setField("seoTitleAr", e.target.value)} />
-          </label>
-          <label className="block text-sm font-medium">
-            {t("seoTitle")}
-            <Input className="mt-1" value={form.seoTitle} onChange={(e) => setField("seoTitle", e.target.value)} dir="ltr" />
-          </label>
-        </div>
-        <label className="mt-4 block text-sm font-medium">
-          {t("seoKeywords")}
-          <Input
-            className="mt-1"
-            value={form.seoKeywords}
-            onChange={(e) => setField("seoKeywords", e.target.value)}
-            placeholder={t("seoKeywordsHint")}
-          />
-        </label>
-      </details>
 
       <Button type="submit" disabled={loading || uploading}>
         {productId ? tc("save") : tc("create")}
