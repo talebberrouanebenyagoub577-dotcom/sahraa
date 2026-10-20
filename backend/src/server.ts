@@ -4,6 +4,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { NextRequest } from "next/server";
 import { handleHealth } from "@/health";
+import { handleRoot } from "@/root";
 import { handleTrack } from "@/v1/track";
 import { handleSheetSync } from "@/v1/sheet-sync";
 
@@ -130,6 +131,11 @@ async function main() {
         });
         res.writeHead(204, out);
         res.end();
+        return;
+      }
+
+      if (url.pathname === "/" && req.method === "GET") {
+        await writeResponse(req, res, handleRoot());
         return;
       }
 
