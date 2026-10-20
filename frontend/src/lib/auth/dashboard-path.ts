@@ -1,5 +1,9 @@
+export function isStoreAdminRole(role?: string | null): boolean {
+  return role === "SUPER_ADMIN" || role === "ADMIN";
+}
+
 export function dashboardPath(locale: string, role?: string | null): string {
-  if (role === "SUPER_ADMIN" || role === "ADMIN") {
+  if (isStoreAdminRole(role)) {
     return `/${locale}/dashboard/admin`;
   }
   if (role === "SELLER") {

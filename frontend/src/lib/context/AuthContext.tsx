@@ -48,7 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await apiFetch("/api/auth/logout", { method: "POST" });
+    await Promise.allSettled([
+      apiFetch("/api/auth/logout", { method: "POST" }),
+      fetch("/api/auth/session", { method: "DELETE", credentials: "same-origin" }),
+    ]);
     setUser(null);
     window.location.href = "/";
   }, []);

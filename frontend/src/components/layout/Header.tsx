@@ -7,7 +7,7 @@ import { Search, ShoppingCart, Heart, Bell, User, Menu, LogOut, Plus } from "luc
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useRouter, usePathname } from "next/navigation";
-import { dashboardPath } from "@/lib/auth/dashboard-path";
+import { dashboardPath, isStoreAdminRole } from "@/lib/auth/dashboard-path";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useCart } from "@/lib/context/CartContext";
 import { SiteLogo } from "@/components/settings/SiteLogo";
@@ -23,7 +23,7 @@ export function Header() {
   const td = useTranslations("dashboard");
   const router = useRouter();
   const { user, logout } = useAuth();
-  const isStoreAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+  const isStoreAdmin = isStoreAdminRole(user?.role);
   const { count, openCart } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);

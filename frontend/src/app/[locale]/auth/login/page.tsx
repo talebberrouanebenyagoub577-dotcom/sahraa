@@ -28,7 +28,17 @@ export default function LoginPage() {
       const data = await res.json();
       if (res.ok) {
         toast.success(tc("success"));
-        const role = data.data?.user?.role;
+        const payload = data.data ?? data;
+        const role = payload?.user?.role ?? payload?.role;
+        const accessToken = payload?.accessToken;
+        if (typeof accessToken === "string" && accessToken) {
+          await fetch("/api/auth/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ accessToken }),
+          });
+        }
         window.location.assign(dashboardPath(locale, role));
       } else {
         toast.error(data.error || tc("error"));
