@@ -62,6 +62,8 @@ const adminCreateSchema = createProductSchema
   .omit({ images: true })
   .extend({
     images: z.array(catalogImageSchema).optional(),
+    description: z.string().min(3),
+    descriptionAr: z.string().min(3),
     status: z.enum(["APPROVED", "DRAFT", "ARCHIVED"]).default("APPROVED"),
     quantity: z.number().int().min(0).default(0),
     seoTitle: z.string().max(200).optional(),
@@ -100,9 +102,9 @@ export async function POST(request: NextRequest) {
         sku: data.sku,
         codAvailable: data.codAvailable,
         status: data.status,
-        isFeatured: data.isFeatured ?? false,
+        isFeatured: data.isFeatured ?? data.status === "APPROVED",
         isTrending: data.isTrending ?? false,
-        isNewArrival: data.isNewArrival ?? false,
+        isNewArrival: data.isNewArrival ?? data.status === "APPROVED",
         isFlashDeal: data.isFlashDeal ?? false,
         images: imageRows?.length ? { create: imageRows } : undefined,
         inventory: {

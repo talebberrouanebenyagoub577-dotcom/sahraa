@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useLocale, useTranslations } from "next-intl";
@@ -13,6 +14,23 @@ import toast from "react-hot-toast";
 import { PRODUCT_UNIT_PRICE } from "@/lib/pricing";
 
 type CatalogImage = { url: string; isPrimary: boolean };
+
+function catalogErrorMessage(
+  data: { error?: string; errors?: Record<string, unknown> },
+  skuExists: string,
+  fallback: string,
+) {
+  if (data.error === "SKU already exists") return skuExists;
+  const fieldErrors =
+    data.errors && typeof data.errors === "object"
+      ? Object.values(data.errors)
+          .flatMap((value) => (Array.isArray(value) ? value : []))
+          .filter((value): value is string => typeof value === "string")
+          .join(" · ")
+      : "";
+  if (fieldErrors) return `${data.error || fallback} — ${fieldErrors}`;
+  return data.error || fallback;
+}
 
 export type AdminProductFormValues = {
   name: string;
@@ -38,9 +56,9 @@ const emptyForm: AdminProductFormValues = {
   price: PRODUCT_UNIT_PRICE,
   compareAtPrice: "",
   sku: "",
-  quantity: 0,
+  quantity: 10,
   codAvailable: true,
-  status: "DRAFT",
+  status: "APPROVED",
   images: [],
 };
 
@@ -120,6 +138,10 @@ export function AdminProductForm({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.categoryId) {
+      toast.error(t("needCategory"));
+      return;
+    }
     setLoading(true);
     const payload = {
       name: form.name,
@@ -129,7 +151,7 @@ export function AdminProductForm({
       categoryId: form.categoryId,
       price: Number(form.price),
       compareAtPrice: form.compareAtPrice === "" ? undefined : Number(form.compareAtPrice),
-      sku: form.sku,
+      sku: form.sku.trim(),
       quantity: Number(form.quantity),
       codAvailable: form.codAvailable,
       status: form.status,
@@ -141,31 +163,43 @@ export function AdminProductForm({
       : "/api/admin/catalog/products";
     const method = productId ? "PATCH" : "POST";
 
-    const res = await apiFetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (res.ok) {
-      onSuccess();
-    } else {
-      const d = await res.json();
-      toast.error(d.error || tc("error"));
+    try {
+      const res = await apiFetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        onSuccess();
+        return;
+      }
+      toast.error(catalogErrorMessage(d, t("skuExists"), tc("error")));
+    } catch {
+      toast.error(tc("error"));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
     <form onSubmit={submit} className="max-w-3xl space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      {categories.length === 0 && (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {t("needCategory")}{" "}
+          <Link href={`/${locale}/dashboard/admin/categories`} className="font-bold underline">
+            {t("categoriesNav")}
+          </Link>
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block text-sm font-medium">
           {t("nameAr")}
-          <Input className="mt-1" value={form.nameAr} onChange={(e) => setField("nameAr", e.target.value)} required dir="rtl" />
+          <Input className="mt-1" value={form.nameAr} onChange={(e) => setField("nameAr", e.target.value)} required minLength={3} dir="rtl" />
         </label>
         <label className="block text-sm font-medium">
           {t("nameEn")}
-          <Input className="mt-1" value={form.name} onChange={(e) => setField("name", e.target.value)} required dir="ltr" />
+          <Input className="mt-1" value={form.name} onChange={(e) => setField("name", e.target.value)} required minLength={3} dir="ltr" />
         </label>
       </div>
 
@@ -177,6 +211,7 @@ export function AdminProductForm({
           value={form.descriptionAr}
           onChange={(e) => setField("descriptionAr", e.target.value)}
           required
+          minLength={3}
           dir="rtl"
         />
       </label>
@@ -188,6 +223,7 @@ export function AdminProductForm({
           value={form.description}
           onChange={(e) => setField("description", e.target.value)}
           required
+          minLength={3}
           dir="ltr"
         />
       </label>
@@ -233,7 +269,7 @@ export function AdminProductForm({
         </label>
         <label className="block text-sm font-medium">
           SKU
-          <Input className="mt-1" value={form.sku} onChange={(e) => setField("sku", e.target.value)} required dir="ltr" />
+          <Input className="mt-1" value={form.sku} onChange={(e) => setField("sku", e.target.value)} required minLength={3} dir="ltr" />
         </label>
         <label className="block text-sm font-medium">
           {t("quantity")}
@@ -255,8 +291,8 @@ export function AdminProductForm({
             value={form.status}
             onChange={(e) => setField("status", e.target.value as AdminProductFormValues["status"])}
           >
-            <option value="DRAFT">{t("statusDraft")}</option>
             <option value="APPROVED">{t("statusApproved")}</option>
+            <option value="DRAFT">{t("statusDraft")}</option>
             <option value="ARCHIVED">{t("statusArchived")}</option>
           </select>
         </label>

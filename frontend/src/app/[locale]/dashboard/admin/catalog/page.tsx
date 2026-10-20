@@ -32,6 +32,7 @@ type CatalogRow = {
 export default function AdminCatalogPage() {
   const locale = useLocale() as Locale;
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const [products, setProducts] = useState<CatalogRow[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string; nameAr: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,10 +54,21 @@ export default function AdminCatalogPage() {
     if (categoryId) params.set("categoryId", categoryId);
     const query = params.toString();
     apiFetch(`/api/admin/catalog/products${query ? `?${query}` : ""}`)
-      .then((r) => r.json())
-      .then((d) => setProducts(d.data || []))
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) {
+          toast.error(d.error || tc("error"));
+          setProducts([]);
+          return;
+        }
+        setProducts(Array.isArray(d.data) ? d.data : []);
+      })
+      .catch(() => {
+        toast.error(tc("error"));
+        setProducts([]);
+      })
       .finally(() => setLoading(false));
-  }, [debouncedQ, status, categoryId]);
+  }, [debouncedQ, status, categoryId, tc]);
 
   useEffect(() => {
     load();
