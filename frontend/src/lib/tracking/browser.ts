@@ -1,6 +1,7 @@
 "use client";
 
 import { apiUrl } from "@/lib/api";
+import { injectedPixelId, sanitizePixelId, type PixelName } from "@/lib/tracking/pixel-id";
 
 const STORAGE_KEY = "sahraa_attribution_v1";
 
@@ -50,14 +51,18 @@ declare global {
   }
 }
 
-function pixelId(name: "META" | "TIKTOK" | "SNAP"): string {
+function envPixelId(name: PixelName): string {
   const value =
     name === "META"
       ? process.env.NEXT_PUBLIC_META_PIXEL_ID
       : name === "TIKTOK"
         ? process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID
         : process.env.NEXT_PUBLIC_SNAP_PIXEL_ID;
-  return value && /^[A-Za-z0-9_-]+$/.test(value) ? value : "";
+  return sanitizePixelId(value);
+}
+
+function pixelId(name: PixelName): string {
+  return injectedPixelId(name) || envPixelId(name);
 }
 
 function readCookie(name: string): string | undefined {

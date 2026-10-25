@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:media": "tsx src/lib/media.test.ts",
     "test:catalog-error": "tsx src/lib/admin/catalog-error.test.ts",
+    "test:pixel-id": "tsx src/lib/tracking/pixel-id.test.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

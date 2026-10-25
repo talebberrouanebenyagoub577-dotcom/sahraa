@@ -14,7 +14,6 @@ import { SettingsProvider, type SiteSettingsData } from "@/lib/context/SettingsC
 import { getSiteSettings, getSiteBaseUrl, serializeSiteSettings } from "@/lib/settings";
 import { LocalePersistence } from "@/components/layout/LocalePersistence";
 import { Toaster } from "react-hot-toast";
-import { PixelScripts } from "@/components/tracking/PixelScripts";
 import { PageTracker } from "@/components/tracking/PageTracker";
 
 export const dynamic = "force-dynamic";
@@ -100,7 +99,6 @@ export default async function LocaleLayout({
 
   return (
     <div lang={locale} dir={dir}>
-      <PixelScripts />
       <PageTracker />
       <NextIntlClientProvider messages={messages}>
         <SettingsProvider settings={settings}>

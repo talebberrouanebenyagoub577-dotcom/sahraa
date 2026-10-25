@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_Arabic } from "next/font/google";
+import { PixelScripts } from "@/components/tracking/PixelScripts";
 import "./globals.css";
 
 const inter = Inter({
@@ -28,12 +29,17 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html className={`${inter.variable} ${notoArabic.variable} dark h-full`} suppressHydrationWarning>
-      <body className="min-h-full flex flex-col bg-background text-foreground antialiased" suppressHydrationWarning>{children}</body>
+      <body className="min-h-full flex flex-col bg-background text-foreground antialiased" suppressHydrationWarning>
+        <PixelScripts />
+        {children}
+      </body>
     </html>
   );
 }
