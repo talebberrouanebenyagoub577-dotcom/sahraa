@@ -4,10 +4,10 @@ import { setAuthCookie } from "@/lib/http/cookies";
 import { ConfirmationState, PaymentMethod } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { assessCheckout, holdReason, recordRejection, riskLevelEnum } from "@/lib/fraud/assess";
-import { otpEnabled, purchaseRequiresConfirmation } from "@/lib/fraud/config";
+import { otpEnabled } from "@/lib/fraud/config";
 import { consumeRate } from "@/lib/fraud/limit";
 import { createOtpCode, deliverOtp, hashOtp, otpExpiry } from "@/lib/fraud/otp";
-import { emitConfirmedPurchase, previewPurchase, syncOrderSheet } from "@/lib/fraud/purchase";
+import { checkoutPurchasePlan, emitConfirmedPurchase, syncOrderSheet } from "@/lib/fraud/purchase";
 import { RATE_LIMIT_MESSAGE } from "@/lib/fraud/score";
 import { getTrustedClientIp } from "@/lib/fraud/ip";
 import { getAuthFromRequest, requireRole, ADMIN_ROLES } from "@/lib/auth/middleware";
@@ -440,16 +440,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const sendPurchaseNow = order.confirmationState === ConfirmationState.CONFIRMED || !purchaseRequiresConfirmation();
+    const purchasePlan = checkoutPurchasePlan(order);
     after(() => syncOrderSheet(order.id, false));
-    if (sendPurchaseNow) {
-      after(() =>
-        emitConfirmedPurchase(order.id, {
-          allowUnconfirmed: order.confirmationState !== ConfirmationState.CONFIRMED,
-        })
-      );
+    if (purchasePlan.emit) {
+      after(() => emitConfirmedPurchase(order.id, { allowUnconfirmed: true }));
     }
-    const tracking = sendPurchaseNow ? previewPurchase(order) : null;
+    const tracking = purchasePlan.tracking;
 
     const response = apiSuccess(
       {

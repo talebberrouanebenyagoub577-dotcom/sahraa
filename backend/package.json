@@ -14,6 +14,7 @@
     "test:catalog-images": "tsx src/lib/admin/catalog-images.test.ts",
     "test:catalog-product": "tsx src/lib/admin/catalog-product-schema.test.ts",
     "test:returns": "tsx src/lib/returns/refund.test.ts",
+    "test:purchase-emit": "tsx src/lib/fraud/purchase-emit.test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

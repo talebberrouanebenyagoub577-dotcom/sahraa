@@ -109,7 +109,20 @@ export function previewPurchase(order: {
   return { purchase, upsell };
 }
 
-/** Sends Purchase / CompletePayment / PURCHASE once. Refused and unconfirmed orders are skipped. */
+export function checkoutPurchasePlan(order: {
+  status: string;
+  confirmationState: ConfirmationState;
+  orderNumber: string;
+  total: number;
+  items: { sku: string; name: string; nameAr: string | null; quantity: number; price: number }[];
+}): { emit: boolean; tracking: ReturnType<typeof previewPurchase> | null } {
+  if (order.status === "CANCELLED" || order.confirmationState === ConfirmationState.REJECTED) {
+    return { emit: false, tracking: null };
+  }
+  return { emit: true, tracking: previewPurchase(order) };
+}
+
+/** Sends Purchase / CompletePayment / PURCHASE once. Refused and cancelled orders are skipped. */
 export async function emitConfirmedPurchase(
   orderId: string,
   options?: { allowUnconfirmed?: boolean }
