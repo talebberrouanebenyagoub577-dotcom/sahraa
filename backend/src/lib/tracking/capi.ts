@@ -60,6 +60,7 @@ export interface TrackingContext {
 }
 
 const TIMEOUT_MS = 8000;
+let metaMissingLogged = false;
 
 function unixNow(): number {
   return Math.floor(Date.now() / 1000);
@@ -77,6 +78,12 @@ function contentsValue(event: CommerceEvent): number | undefined {
   return undefined;
 }
 
+function redactSecret(value: string): string {
+  return value
+    .replace(/access_token=[^&\s"]+/gi, "access_token=redacted")
+    .replace(/EAA[A-Za-z0-9]+/g, "redacted");
+}
+
 async function postJson(url: string, body: unknown, headers: Record<string, string>): Promise<boolean> {
   const response = await fetch(url, {
     method: "POST",
@@ -85,7 +92,16 @@ async function postJson(url: string, body: unknown, headers: Record<string, stri
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!response.ok) {
-    console.warn(`[capi] ${response.status} from ${new URL(url).host}`);
+    let detail = "";
+    try {
+      const err = (await response.json()) as { error?: { code?: number; type?: string; message?: string } };
+      const code = err.error?.code || err.error?.type || "";
+      const message = redactSecret(String(err.error?.message || "")).slice(0, 160);
+      detail = [code, message].filter(Boolean).join(" ");
+    } catch {
+      detail = "";
+    }
+    console.warn(`[capi] ${response.status} ${new URL(url).host}${detail ? ` ${detail}` : ""}`);
     return false;
   }
   return true;
@@ -94,7 +110,13 @@ async function postJson(url: string, body: unknown, headers: Record<string, stri
 async function sendMeta(event: CommerceEvent, ctx: TrackingContext): Promise<void> {
   const pixelId = process.env.META_PIXEL_ID;
   const token = process.env.META_CAPI_ACCESS_TOKEN;
-  if (!pixelId || !token) return;
+  if (!pixelId || !token) {
+    if (!metaMissingLogged) {
+      console.warn("[capi] meta skipped: configuration incomplete");
+      metaMissingLogged = true;
+    }
+    return;
+  }
   if (!(await claimTrackingEvent(event.eventId, "meta", event.metaName))) return;
 
   const user = ctx.user || {};

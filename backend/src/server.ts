@@ -220,6 +220,13 @@ async function main() {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`[sahraa-api] listening on ${port}`);
+    if (process.env.META_PIXEL_ID && process.env.META_CAPI_ACCESS_TOKEN) {
+      console.log(
+        `[capi] meta configured${process.env.META_TEST_EVENT_CODE ? " test-events-on" : " test-events-off"}`
+      );
+    } else {
+      console.warn("[capi] meta not configured");
+    }
   });
 }
 
