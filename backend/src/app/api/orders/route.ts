@@ -8,6 +8,7 @@ import { otpEnabled } from "@/lib/fraud/config";
 import { consumeRate } from "@/lib/fraud/limit";
 import { createOtpCode, deliverOtp, hashOtp, otpExpiry } from "@/lib/fraud/otp";
 import { checkoutPurchasePlan, emitConfirmedPurchase, syncOrderSheet } from "@/lib/fraud/purchase";
+import { withAdminCustomer, withItemVariants } from "@/lib/orders/attach-variants";
 import { RATE_LIMIT_MESSAGE } from "@/lib/fraud/score";
 import { getTrustedClientIp } from "@/lib/fraud/ip";
 import { getAuthFromRequest, requireRole, ADMIN_ROLES } from "@/lib/auth/middleware";
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
             },
           },
           statusHistory: { orderBy: { createdAt: "desc" }, take: 5 },
+          user: { select: { firstName: true, lastName: true, phone: true } },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -65,8 +67,11 @@ export async function GET(request: NextRequest) {
       prisma.order.count({ where }),
     ]);
 
+    const withVariants = await withItemVariants(orders);
+    const payload = isAdmin ? withVariants.map((order) => withAdminCustomer(order)) : withVariants;
+
     return apiSuccess({
-      orders,
+      orders: payload,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (error) {

@@ -7,6 +7,7 @@ import { OrderStatus } from "@prisma/client";
 import { PRODUCT_UNIT_PRICE } from "@/lib/pricing";
 import { appendOrderToGoogleSheet } from "@/lib/services/googleSheet";
 import { z } from "zod";
+import { withAdminCustomer, withItemVariants } from "@/lib/orders/attach-variants";
 
 export async function GET(
   request: NextRequest,
@@ -38,12 +39,14 @@ export async function GET(
       return apiError("Forbidden", 403);
     }
 
+    const [enriched] = await withItemVariants([order]);
+
     if (!isAdmin) {
-      const { clientIp: _clientIp, attribution: _attribution, deviceId: _deviceId, ...safe } = order;
+      const { clientIp: _clientIp, attribution: _attribution, deviceId: _deviceId, ...safe } = enriched;
       return apiSuccess(safe);
     }
 
-    return apiSuccess(order);
+    return apiSuccess(withAdminCustomer(enriched));
   } catch (error) {
     return handleApiError(error);
   }

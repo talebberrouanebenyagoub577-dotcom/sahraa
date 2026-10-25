@@ -15,6 +15,7 @@
     "test:catalog-product": "tsx src/lib/admin/catalog-product-schema.test.ts",
     "test:returns": "tsx src/lib/returns/refund.test.ts",
     "test:purchase-emit": "tsx src/lib/fraud/purchase-emit.test.ts",
+    "test:admin-orders": "tsx src/lib/orders/admin-view.test.ts && tsx src/lib/orders/orders-auth.test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
