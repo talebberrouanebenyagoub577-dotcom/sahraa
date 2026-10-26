@@ -8,7 +8,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatAdminItemLine } from "@/lib/admin/order-display";
+import { formatAdminItemLine, readAdminOrders } from "@/lib/admin/order-display";
 import { formatPrice } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -38,20 +38,25 @@ export default function AdminOrdersPage() {
   const t = useTranslations("dashboard");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await apiFetch("/api/orders?limit=50");
+      const res = await apiFetch("/api/admin/orders?limit=50");
       const body = await res.json();
       if (!res.ok) {
-        toast.error(body.error || t("loadFailed"));
+        const message = body.error || t("loadFailed");
+        setError(message);
+        if (!silent) toast.error(message);
         setOrders([]);
         return;
       }
-      setOrders((body.data?.orders || []) as AdminOrder[]);
+      setError("");
+      setOrders(readAdminOrders(body) as AdminOrder[]);
     } catch {
-      toast.error(t("loadFailed"));
+      setError(t("loadFailed"));
+      if (!silent) toast.error(t("loadFailed"));
     } finally {
       if (!silent) setLoading(false);
     }
@@ -85,7 +90,7 @@ export default function AdminOrdersPage() {
       </div>
       <DataTable
         loading={loading}
-        emptyMessage={t("noOrders")}
+        emptyMessage={error || t("noOrders")}
         data={orders as unknown as Record<string, unknown>[]}
         onRowClick={(row) => router.push(`/${locale}/dashboard/admin/orders/${String(row.id)}`)}
         columns={[

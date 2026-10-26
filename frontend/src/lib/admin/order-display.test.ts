@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { formatAdminItemLine } from "./order-display";
+import { formatAdminItemLine, readAdminOrders } from "./order-display";
 
 assert.equal(
   formatAdminItemLine(
@@ -12,5 +12,12 @@ assert.equal(
   formatAdminItemLine({ name: "Kohl", nameAr: "كحل", quantity: 1 }, "en"),
   "Kohl ×1"
 );
+
+assert.equal(
+  readAdminOrders({ success: true, data: { orders: [{ id: "ord_1", orderNumber: "SHR-1" }] } }).length,
+  1
+);
+assert.equal(readAdminOrders({ data: [{ id: "ord_2" }] }).length, 1);
+assert.equal(readAdminOrders({ error: "Unauthorized" }).length, 0);
 
 console.log("admin order display ok");

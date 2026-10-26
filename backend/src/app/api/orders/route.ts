@@ -8,7 +8,8 @@ import { otpEnabled } from "@/lib/fraud/config";
 import { consumeRate } from "@/lib/fraud/limit";
 import { createOtpCode, deliverOtp, hashOtp, otpExpiry } from "@/lib/fraud/otp";
 import { checkoutPurchasePlan, emitConfirmedPurchase, syncOrderSheet } from "@/lib/fraud/purchase";
-import { withAdminCustomer, withItemVariants } from "@/lib/orders/attach-variants";
+import { logOrderError, parsePageLimit } from "@/lib/orders/admin-view";
+import { loadOrderList } from "@/lib/orders/list";
 import { RATE_LIMIT_MESSAGE } from "@/lib/fraud/score";
 import { getTrustedClientIp } from "@/lib/fraud/ip";
 import { getAuthFromRequest, requireRole, ADMIN_ROLES } from "@/lib/auth/middleware";
@@ -36,45 +37,20 @@ export async function GET(request: NextRequest) {
     if (!auth) return apiError("Unauthorized", 401);
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
-    const status = searchParams.get("status");
-
-    const userId = auth.user.userId;
+    const { page, limit } = parsePageLimit(searchParams, 10);
     const isAdmin = requireRole(auth, ADMIN_ROLES);
-    const where = isAdmin
-      ? { ...(status ? { status: status as never } : {}) }
-      : { userId, ...(status ? { status: status as never } : {}) };
 
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        include: {
-          items: {
-            include: {
-              product: {
-                include: { images: { where: { isPrimary: true }, take: 1 } },
-              },
-            },
-          },
-          statusHistory: { orderBy: { createdAt: "desc" }, take: 5 },
-          user: { select: { firstName: true, lastName: true, phone: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.order.count({ where }),
-    ]);
-
-    const withVariants = await withItemVariants(orders);
-    const payload = isAdmin ? withVariants.map((order) => withAdminCustomer(order)) : withVariants;
-
-    return apiSuccess({
-      orders: payload,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    const payload = await loadOrderList({
+      isAdmin,
+      userId: auth.user.userId,
+      page,
+      limit,
+      status: searchParams.get("status"),
     });
+
+    return apiSuccess(payload);
   } catch (error) {
+    logOrderError("list", error);
     return handleApiError(error);
   }
 }
@@ -125,37 +101,7 @@ export async function POST(request: NextRequest) {
 
     const phoneStored = risk.phoneE164 || rawPhone;
 
-    if (!userId) {
-      // Find or create customer account by phone
-      let user = await prisma.user.findFirst({
-        where: { phone: { in: [rawPhone, phoneStored] } },
-      });
-
-      if (!user) {
-        const uniqueEmail = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 7)}@guest.sahraa.store`;
-        user = await prisma.user.create({
-          data: {
-            email: uniqueEmail,
-            phone: phoneStored,
-            firstName: customerName,
-            lastName: "",
-            passwordHash: "cod_guest_order_no_password",
-            role: "CUSTOMER",
-            country: data.shippingAddress.country,
-            currency: "SAR",
-          },
-        });
-      }
-
-      userId = user.id;
-      authCookieToken = signAccessToken({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-      });
-    }
-
-    // 2. Resolve Items (Direct payload or DB Cart)
+    // 2. Resolve Items (Direct payload or DB Cart) — before creating a guest user
     interface ResolvedLineItem {
       productId: string;
       variantId?: string | null;
@@ -204,6 +150,10 @@ export async function POST(request: NextRequest) {
           : [];
       const varMap = new Map(variants.map((v) => [v.id, v]));
 
+      const missing = data.items.filter((item) => !prodMap.has(item.productId)).length;
+      if (missing > 0) {
+        console.warn("[orders.create] products unavailable", { missing, requested: data.items.length });
+      }
       for (const item of data.items) {
         const prod = prodMap.get(item.productId);
         if (!prod) continue;
@@ -224,7 +174,7 @@ export async function POST(request: NextRequest) {
           variant,
         });
       }
-    } else {
+    } else if (userId) {
       // Fallback to DB Cart
       const cart = await prisma.cart.findUnique({
         where: { userId },
@@ -274,7 +224,39 @@ export async function POST(request: NextRequest) {
     }
 
     if (resolvedItems.length === 0) {
+      console.warn("[orders.create] empty cart after resolve", {
+        hadPayloadItems: Boolean(data.items?.length),
+      });
       return apiError("Cart is empty", 400);
+    }
+
+    if (!userId) {
+      let user = await prisma.user.findFirst({
+        where: { phone: { in: [rawPhone, phoneStored] } },
+      });
+
+      if (!user) {
+        const uniqueEmail = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 7)}@guest.sahraa.store`;
+        user = await prisma.user.create({
+          data: {
+            email: uniqueEmail,
+            phone: phoneStored,
+            firstName: customerName,
+            lastName: "",
+            passwordHash: "cod_guest_order_no_password",
+            role: "CUSTOMER",
+            country: data.shippingAddress.country,
+            currency: "SAR",
+          },
+        });
+      }
+
+      userId = user.id;
+      authCookieToken = signAccessToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      });
     }
 
     // 3. Resolve Upsell Product (if customer accepted OTO upsell)
@@ -426,6 +408,12 @@ export async function POST(request: NextRequest) {
       return newOrder;
     });
 
+    console.info("[orders.create] saved", {
+      orderNumber: order.orderNumber,
+      itemCount: order.items.length,
+      status: order.status,
+    });
+
     let otpDelivery: "sent" | "skipped" | "failed" | null = null;
     if (otpEnabled() && risk.canSelfConfirm && risk.phoneE164 && order.confirmationState !== ConfirmationState.CONFIRMED) {
       try {
@@ -471,6 +459,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
+    logOrderError("create", error);
     if (error instanceof CheckoutError) {
       return apiError(error.message, error.status);
     }

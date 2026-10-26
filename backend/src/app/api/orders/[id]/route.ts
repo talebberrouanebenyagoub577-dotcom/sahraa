@@ -8,6 +8,7 @@ import { PRODUCT_UNIT_PRICE } from "@/lib/pricing";
 import { appendOrderToGoogleSheet } from "@/lib/services/googleSheet";
 import { z } from "zod";
 import { withAdminCustomer, withItemVariants } from "@/lib/orders/attach-variants";
+import { logOrderError } from "@/lib/orders/admin-view";
 
 export async function GET(
   request: NextRequest,
@@ -48,6 +49,7 @@ export async function GET(
 
     return apiSuccess(withAdminCustomer(enriched));
   } catch (error) {
+    logOrderError("detail", error);
     return handleApiError(error);
   }
 }
