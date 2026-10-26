@@ -425,7 +425,7 @@ export function CheckoutModal() {
 
                 {/* Totals Breakdown */}
                 <div className="mt-3 border-t border-slate-100 pt-3 space-y-1.5 text-xs">
-                  <div className="flex justify-between text-slate-600">
+                  <div className="flex justify-between text-black">
                     <span>{isAr ? "المجموع الفرعي" : "Subtotal"}</span>
                     <span>{formatPrice(summary.subtotal, "SAR", locale)}</span>
                   </div>
@@ -435,15 +435,15 @@ export function CheckoutModal() {
                       <span>-{formatPrice(summary.savings, "SAR", locale)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-slate-600">
+                  <div className="flex justify-between text-black">
                     <span>{isAr ? "الشحن والتوصيل" : "Delivery"}</span>
-                    <span className="font-bold text-emerald-600">
+                    <span className="font-bold text-black">
                       {isAr ? "مجاني لكافة المناطق" : "Free"}
                     </span>
                   </div>
-                  <div className="flex items-baseline justify-between border-t border-slate-200 pt-2 text-base font-black text-slate-900">
+                  <div className="flex items-baseline justify-between border-t border-slate-200 pt-2 text-base font-black text-black">
                     <span>{isAr ? "الإجمالي للدفع عند الاستلام" : "Total to Pay (COD)"}</span>
-                    <span className="text-xl font-black text-amber-600">
+                    <span className="text-xl font-black text-black">
                       {formatPrice(summary.total, "SAR", locale)}
                     </span>
                   </div>

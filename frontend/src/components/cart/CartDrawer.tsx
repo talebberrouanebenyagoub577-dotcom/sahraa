@@ -223,7 +223,7 @@ export function CartDrawer() {
 
             {/* Price Breakdown */}
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-black">
                 <span>{isAr ? "المجموع الفرعي" : "Subtotal"}</span>
                 <span>{formatPrice(summary.subtotal, "SAR", locale)}</span>
               </div>
@@ -233,15 +233,15 @@ export function CartDrawer() {
                   <span>-{formatPrice(summary.savings, "SAR", locale)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-black">
                 <span>{isAr ? "الشحن والتوصيل" : "Delivery"}</span>
-                <span className="font-semibold text-emerald-600">
+                <span className="font-semibold text-black">
                   {isAr ? "مجاني بالكامل" : "Free"}
                 </span>
               </div>
-              <div className="flex items-baseline justify-between border-t border-slate-200 pt-2 text-base font-extrabold text-slate-900">
+              <div className="flex items-baseline justify-between border-t border-slate-200 pt-2 text-base font-extrabold text-black">
                 <span>{isAr ? "الإجمالي للدفع عند الاستلام" : "Total (COD)"}</span>
-                <span className="text-xl text-amber-600">
+                <span className="text-xl text-black">
                   {formatPrice(summary.total, "SAR", locale)}
                 </span>
               </div>
