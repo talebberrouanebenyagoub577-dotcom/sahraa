@@ -11,11 +11,10 @@ export async function GET(request: NextRequest) {
     if (!auth || !requireRole(auth, ADMIN_ROLES)) return apiError("Unauthorized", 401);
 
     const { searchParams } = new URL(request.url);
-    const role = searchParams.get("role") as UserRole | null;
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
 
-    const where = role ? { role } : {};
+    const where = { role: { in: ADMIN_ROLES } };
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -47,6 +46,10 @@ export async function PATCH(request: NextRequest) {
       role: z.nativeEnum(UserRole).optional(),
       isActive: z.boolean().optional(),
     }).parse(await request.json());
+
+    const existing = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!existing || !ADMIN_ROLES.includes(existing.role)) return apiError("Not found", 404);
+    if (role && !ADMIN_ROLES.includes(role)) return apiError("Forbidden", 403);
 
     const user = await prisma.user.update({
       where: { id: userId },
