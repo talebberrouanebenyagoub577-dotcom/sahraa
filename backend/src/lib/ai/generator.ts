@@ -1,3 +1,5 @@
+import { detectDialect, unknownReply } from "./product-context";
+
 export interface ProductAIContent {
   description: string;
   descriptionAr: string;
@@ -78,59 +80,11 @@ function generateFallbackContent(
 
 export async function chatAssistant(
   message: string,
-  context?: { userId?: string; orderId?: string }
+  _context?: { userId?: string; orderId?: string }
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    return getFallbackResponse(message);
-  }
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: process.env.AI_MODEL || "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "أنت مساعد صحرا الذكي، مساعد تسوق عربي لسوق إلكتروني في دول الخليج. ساعد العملاء في الطلبات والمنتجات والدفع عند الاستلام. أجب بالعربية بشكل مختصر وودود.",
-          },
-          {
-            role: "user",
-            content: `Context: ${JSON.stringify(context || {})}\nUser: ${message}`,
-          },
-        ],
-        max_tokens: 500,
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return data.choices[0].message.content;
-    }
-  } catch (error) {
-    console.error("Chat assistant error:", error);
-  }
-
   return getFallbackResponse(message);
 }
 
 function getFallbackResponse(message: string): string {
-  const lower = message.toLowerCase();
-  if (lower.includes("طلب") || lower.includes("order")) {
-    return "يمكنك تتبع طلبك من لوحة التحكم > طلباتي. هل تحتاج مساعدة في طلب محدد؟";
-  }
-  if (lower.includes("دفع") || lower.includes("cod") || lower.includes("payment")) {
-    return "نوفر الدفع عند الاستلام في جميع دول الخليج. يمكنك أيضاً الدفع ببطاقة الائتمان أو PayPal.";
-  }
-  if (lower.includes("شحن") || lower.includes("shipping") || lower.includes("توصيل")) {
-    return "التوصيل يستغرق 2-5 أيام عمل حسب منطقتك. نتعاون مع أرامكس وسمسا وDHL.";
-  }
-  return "مرحباً بك في صحرا! كيف يمكنني مساعدتك اليوم؟ يمكنني مساعدتك في الطلبات والمنتجات والشحن.";
+  return unknownReply(detectDialect(message, "ar"));
 }
