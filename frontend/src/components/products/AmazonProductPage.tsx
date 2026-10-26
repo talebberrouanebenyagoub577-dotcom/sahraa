@@ -574,8 +574,7 @@ export async function AmazonProductPage({
       : [];
 
   return (
-    <div className="bg-white text-black">
-    <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 lg:pb-12 lg:pt-8 text-black">
+    <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 lg:pb-12 lg:pt-8">
       <nav aria-label={t("breadcrumb")} className="mb-5 text-sm text-slate-500">
         <ol className="flex flex-wrap items-center gap-2">
           <li>
@@ -885,9 +884,9 @@ export async function AmazonProductPage({
                 <div className="rounded-full bg-emerald-600 p-2 text-white">
                   <BadgeCheck className="h-5 w-5" />
                 </div>
-                <h2 className="text-xl font-bold text-black">{t("suitableFor")}</h2>
+                <h2 className="text-xl font-bold">{t("suitableFor")}</h2>
               </div>
-              <p className="mt-4 leading-7 text-black">
+              <p className="mt-4 leading-7 text-slate-700">
                 {isArabic
                   ? audienceFaq.answerAr || audienceFaq.answer
                   : audienceFaq.answer}
@@ -1024,6 +1023,5 @@ export async function AmazonProductPage({
         image={product.images[0]?.url}
       />
     </main>
-    </div>
   );
 }

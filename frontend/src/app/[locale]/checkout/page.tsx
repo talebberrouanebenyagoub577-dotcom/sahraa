@@ -198,8 +198,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="bg-white text-black">
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12 text-black">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
       {/* Stock Timer Bar */}
       <div className="mb-6 flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 py-2.5 px-4 text-center text-xs font-black text-amber-950 shadow-sm">
         <Clock className="h-4 w-4 animate-spin text-amber-700" style={{ animationDuration: "8s" }} />
@@ -393,7 +392,7 @@ export default function CheckoutPage() {
 
             {/* Price Calculations */}
             <div className="mt-4 border-t border-slate-100 pt-4 space-y-2 text-xs">
-              <div className="flex justify-between text-black">
+              <div className="flex justify-between text-slate-600">
                 <span>{isAr ? "المجموع الفرعي" : "Subtotal"}</span>
                 <span>{formatPrice(summary.subtotal, "SAR", locale)}</span>
               </div>
@@ -403,15 +402,15 @@ export default function CheckoutPage() {
                   <span>-{formatPrice(summary.savings, "SAR", locale)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-black">
+              <div className="flex justify-between text-slate-600">
                 <span>{isAr ? "الشحن والتوصيل" : "Delivery"}</span>
-                <span className="font-bold text-black">
+                <span className="font-bold text-emerald-600">
                   {isAr ? "مجاني لكافة المناطق" : "Free"}
                 </span>
               </div>
-              <div className="flex items-baseline justify-between border-t border-slate-200 pt-3 text-base font-black text-black">
+              <div className="flex items-baseline justify-between border-t border-slate-200 pt-3 text-base font-black text-slate-900">
                 <span>{isAr ? "الإجمالي للدفع عند الاستلام" : "Total to Pay"}</span>
-                <span className="text-2xl font-black text-black">
+                <span className="text-2xl font-black text-amber-600">
                   {formatPrice(summary.total, "SAR", locale)}
                 </span>
               </div>
@@ -463,7 +462,6 @@ export default function CheckoutPage() {
           placeOrder();
         }}
       />
-    </div>
     </div>
   );
 }

@@ -128,30 +128,32 @@ export function ChatAssistant() {
       </button>
 
       {open && (
-        <div className="fixed bottom-24 end-6 z-50 flex h-[480px] w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-black shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+        <div className="fixed bottom-24 end-6 z-50 flex h-[480px] w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-slate-100 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-4 py-3 text-white">
             <div>
-              <h3 className="font-semibold text-black">
+              <h3 className="font-semibold">
                 {isRtl ? "مساعد صحرا" : "SAHRAA Assistant"}
               </h3>
-              <p className="text-xs text-black">
+              <p className="text-xs text-slate-400">
                 {product ? (isRtl ? product.nameAr || product.name : product.name) : "AI Powered"}
               </p>
             </div>
             <button onClick={() => setOpen(false)}>
-              <X className="h-5 w-5 text-black" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-white p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((msg, i) => (
               <div
                 key={i}
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm text-black ${
-                    msg.role === "user" ? "bg-amber-100" : "bg-slate-100"
+                  className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                    msg.role === "user"
+                      ? "bg-amber-500 text-white"
+                      : "bg-slate-800 text-slate-200"
                   }`}
                 >
                   {msg.content}
@@ -160,7 +162,7 @@ export function ChatAssistant() {
             ))}
             {loading && (
               <div className="flex justify-start">
-                <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm text-black">
+                <div className="rounded-2xl bg-slate-800 px-4 py-2 text-sm text-slate-400">
                   ...
                 </div>
               </div>
@@ -168,7 +170,7 @@ export function ChatAssistant() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="border-t border-slate-200 bg-white p-3">
+          <div className="border-t border-slate-700 p-3">
             {chips.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {chips.map((chip) => (
@@ -176,7 +178,7 @@ export function ChatAssistant() {
                     key={chip}
                     type="button"
                     onClick={() => sendMessage(chip)}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-black"
+                    className="rounded-full border border-slate-600 bg-slate-800 px-2.5 py-1 text-[11px] text-slate-200"
                   >
                     {chip}
                   </button>
@@ -189,7 +191,7 @@ export function ChatAssistant() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 placeholder={isRtl ? "اكتب رسالتك..." : "Type a message..."}
-                className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-black placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="flex-1 rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
               <Button size="icon" onClick={() => sendMessage()} disabled={loading}>
                 <Send className="h-4 w-4" />
