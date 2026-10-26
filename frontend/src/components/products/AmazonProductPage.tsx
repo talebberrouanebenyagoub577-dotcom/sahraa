@@ -571,6 +571,39 @@ export async function AmazonProductPage({
               description: t("emsFootMedia.usageDescription"),
             },
           ]
+      : product.slug === "slimmax-firming-serum-with-retinol-extract-mvh1ii9a"
+        ? [
+            {
+              src: "/products/slimmax-firming-serum-with-retinol-extract-mvh1ii9a/product.jpg",
+              title: t("retinalShotMedia.productTitle"),
+              description: t("retinalShotMedia.productDescription"),
+            },
+            {
+              src: "/products/slimmax-firming-serum-with-retinol-extract-mvh1ii9a/concerns.jpg",
+              title: t("retinalShotMedia.concernsTitle"),
+              description: t("retinalShotMedia.concernsDescription"),
+            },
+            {
+              src: "/products/slimmax-firming-serum-with-retinol-extract-mvh1ii9a/effect.jpg",
+              title: t("retinalShotMedia.effectTitle"),
+              description: t("retinalShotMedia.effectDescription"),
+            },
+            {
+              src: "/products/slimmax-firming-serum-with-retinol-extract-mvh1ii9a/lifestyle.jpg",
+              title: t("retinalShotMedia.lifestyleTitle"),
+              description: t("retinalShotMedia.lifestyleDescription"),
+            },
+            {
+              src: "/products/slimmax-firming-serum-with-retinol-extract-mvh1ii9a/eye-results.jpg",
+              title: t("retinalShotMedia.eyeTitle"),
+              description: t("retinalShotMedia.eyeDescription"),
+            },
+            {
+              src: "/products/slimmax-firming-serum-with-retinol-extract-mvh1ii9a/ingredients.jpg",
+              title: t("retinalShotMedia.ingredientsTitle"),
+              description: t("retinalShotMedia.ingredientsDescription"),
+            },
+          ]
       : [];
 
   return (
