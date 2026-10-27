@@ -79,8 +79,17 @@ const MEDICAL_RE =
   /يعالج|علاج|مرض|تشخيص|فائدة طبية|وصفة طبي|doctor|diagnos|treat(?:s|ment)?|cure|التهاب|medical benefit/i;
 const USAGE_RE = /كيفاش|كيف|استعمل|استخدام|خطوة|كمية|مرات|صباح|مساء|how (?:do|to)|use|usage|apply/i;
 const WHAT_RE = /واش يدير|واش هذا|شنو هو|ما هو|ما هذا|what is|what does|فائدة|غرض/i;
-const WHO_RE = /شكون|لمن يناسب|لمن لا|يناسب هذا|بشرة حساسة|who (?:is|can)|suitable|sensitive skin/i;
+const WHO_RE = /شكون|لمن يناسب|لمن لا|يناسب|بشرة حساسة|البشرة الحساسة|حساس|who (?:is|can)|suitable|sensitive\s*skin/i;
 const ING_RE = /مكون|مكونات|يحتوي|تركيبة|ingredient|contain|formula|retinol|retinal/i;
+const RESULTS_RE = /متى تظهر|النتائج|نتائج|result|when (?:will|do)|how long until/i;
+const USAGE_PAGE_RE =
+  /استعمال|استخدام|طريقة|ضعي|ضع |رشّ|رش |ربّت|تدريج|مساء|واقي الشمس|apply|pat|spray|shake|instruction/i;
+const ING_PAGE_RE =
+  /مكون|ريتينال|retinal|retinol|نياسين|توكوفيرول|أسكوربيك|زانثان|غلوكوز|يحوي|تركيبة|ingredient|panthenol|matrixyl|نياسيناميد/i;
+const WHO_PAGE_RE =
+  /يناسب|حساس|حمل|اختبار|تجربة|منطقة صغيرة|sensitive|pregnan|patch test|للبالغين|تجنّب|يفضّل تجنبه/i;
+const RESULTS_PAGE_RE =
+  /نتائج|تختلف|مؤقت|توضيح تجميلي|vary|temporary|illustration|ليس علاجا|ليست علاجا/i;
 const NAME_RE = /اسم المنتج|ما اسمه|ما اسم|شنو اسم|product name|what(?:'s| is) (?:the )?name/i;
 const PRICE_RE = /سعر المنتج|سعره|الثمن|بكم|بكام|كم سعر|product price|how much|price/i;
 const COLOR_RE = /ألوان|الوان|لون|colou?rs?/i;
@@ -218,6 +227,9 @@ export function formatProductContext(ctx: ProductAssistantContext, locale: strin
     `SIZES: ${ctx.sizes.join(", ") || "(none on page)"}`,
     `VARIANTS:\n${variants || "(none on page)"}`,
     `IMAGES: ${ctx.images.length}`,
+    ctx.images.some((item) => item.alt)
+      ? `IMAGE_ALTS:\n${ctx.images.map((item) => item.alt).filter(Boolean).join("\n")}`
+      : "",
     ctx.weight != null ? `WEIGHT: ${ctx.weight}` : "",
     ctx.dimensions ? `DIMENSIONS: ${ctx.dimensions}` : "",
     ctx.codAvailable ? "COD: shown on this product page" : "",
@@ -251,7 +263,36 @@ function faqScore(question: string, faq: ProductFaqFact): number {
   if (ING_RE.test(question) && /مكون|يحتوي|ingredient|contain/i.test(`${faq.question} ${faq.questionAr} ${faq.answer} ${faq.answerAr}`)) {
     score += 3;
   }
+  if (RESULTS_RE.test(question) && /نتائج|result/i.test(`${faq.question} ${faq.questionAr} ${faq.answer} ${faq.answerAr}`)) {
+    score += 3;
+  }
   return score;
+}
+
+function splitPassages(value: string): string[] {
+  return value
+    .split(/(?<=[.!؟?\n؛;])/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 8);
+}
+
+function catalogPassages(ctx: ProductAssistantContext, locale: string): string[] {
+  const chunks = [
+    pickLocaleText(locale, ctx.descriptionAr, ctx.description),
+    ...ctx.faqs.map((faq) => pickLocaleText(locale, faq.answerAr, faq.answer)),
+    ...ctx.images.map((item) => (item.alt || "").trim()),
+  ];
+  return chunks.flatMap(splitPassages);
+}
+
+function passagesMatching(
+  ctx: ProductAssistantContext,
+  locale: string,
+  patterns: RegExp[]
+): string | null {
+  const hits = catalogPassages(ctx, locale).filter((part) => patterns.some((pattern) => pattern.test(part)));
+  if (!hits.length) return null;
+  return [...new Set(hits)].join(" ");
 }
 
 function bestFaq(question: string, faqs: ProductFaqFact[]): ProductFaqFact | null {
@@ -429,7 +470,27 @@ export function groundedFallback(
     return ok(pickLocaleText(locale, matched.answerAr, matched.answer));
   }
 
-  if (ING_RE.test(q) || USAGE_RE.test(q) || WHO_RE.test(q) || MEDICAL_RE.test(q)) {
+  if (USAGE_RE.test(q)) {
+    const usage = passagesMatching(ctx, locale, [USAGE_PAGE_RE]);
+    return usage ? ok(usage) : refuse();
+  }
+
+  if (ING_RE.test(q)) {
+    const ingredients = passagesMatching(ctx, locale, [ING_PAGE_RE]);
+    return ingredients ? ok(ingredients) : refuse();
+  }
+
+  if (WHO_RE.test(q)) {
+    const who = passagesMatching(ctx, locale, [WHO_PAGE_RE]);
+    return who ? ok(who) : refuse();
+  }
+
+  if (RESULTS_RE.test(q)) {
+    const results = passagesMatching(ctx, locale, [RESULTS_PAGE_RE]);
+    return results ? ok(results) : refuse();
+  }
+
+  if (MEDICAL_RE.test(q)) {
     return refuse();
   }
 

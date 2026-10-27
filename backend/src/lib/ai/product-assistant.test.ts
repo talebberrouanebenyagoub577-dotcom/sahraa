@@ -127,6 +127,44 @@ assert(!card.includes("خصم سري"), "context does not invent discounts");
 const emptyFaqs = groundedFallback("متى تظهر النتائج؟", { ...concealer, faqs: [] }, "ar");
 assert(emptyFaqs.reply === UNKNOWN_MAGHREB, "missing facts are stated clearly");
 
+const retinal: ProductAssistantContext = {
+  ...concealer,
+  slug: "slimmax-firming-serum-with-retinol-extract-mvh1ii9a",
+  name: "Slimmax Firming Serum with Retinol Extract",
+  nameAr: "كريم RETINAL SHOT لشدّ البشرة وتعزيز مظهرها",
+  description:
+    "Use as directed on the pack. If it contains retinal, start gradually in the evening and use sunscreen in the daytime.",
+  descriptionAr:
+    "يُستخدم حسب التعليمات الموجودة على العبوة. إذا كان يحتوي على الريتينال، ابدئي باستخدامه تدريجياً في المساء، مع استعمال واقي الشمس خلال النهار. يُنصح باختبار المنتج على منطقة صغيرة من البشرة قبل الاستخدام. قد يسبب الريتينال تهيجاً أو جفافاً، ويُفضّل تجنبه أثناء الحمل. النتائج التجميلية تختلف من شخص لآخر وليست علاجاً طبياً.",
+  colors: [],
+  sizes: [],
+  variants: [],
+  faqs: [],
+  images: [
+    {
+      url: "/products/slimmax-firming-serum-with-retinol-extract-mvh1ii9a/ingredients.jpg",
+      alt: "المكونات الظاهرة في الصورة: الريتينال، النياسيناميد، توكوفيرول، حمض الأسكوربيك، الزانثان، والغلوكوز.",
+    },
+  ],
+};
+
+const retinalUsage = groundedFallback("كيفاش نستعمله؟", retinal, "ar");
+assert(retinalUsage.reply.includes("تدريجياً في المساء"), "usage comes from the product page text");
+
+const retinalIngredients = groundedFallback("واش هي المكونات؟", retinal, "ar");
+assert(retinalIngredients.reply.includes("الريتينال"), "ingredients come from the page images");
+assert(retinalIngredients.reply.includes("النياسيناميد"), "only ingredients shown on the page");
+
+const retinalWho = groundedFallback("شكون يقدر يستعمله؟", retinal, "ar");
+assert(retinalWho.reply.includes("اختبار المنتج"), "who-can-use comes from the page warning");
+
+const retinalSensitive = groundedFallback("هل يناسب البشرة الحساسة؟", retinal, "ar");
+assert(retinalSensitive.reply.includes("منطقة صغيرة"), "sensitive-skin answer stays on the page");
+
+const retinalResults = groundedFallback("متى تظهر النتائج؟", retinal, "ar");
+assert(retinalResults.reply.includes("تختلف من شخص لآخر"), "results timing is not invented");
+assert(!/\d+\s*(يوم|أيام|أسبوع)/.test(retinalResults.reply), "no invented result timeline");
+
 assert(detectDialect("وش سعره لو سمحت", "ar") === "saudi", "Saudi dialect is detected");
 assert(
   unknownReply("en") ===
