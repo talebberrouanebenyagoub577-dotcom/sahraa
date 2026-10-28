@@ -257,20 +257,39 @@ export function ProductActions({
         <div className="font-bold text-amber-900 mb-1">
           {isAr ? "💡 باقات التوفير الحصرية الشاملة للتوصيل:" : "Exclusive Bundle Savings:"}
         </div>
-        <div className="grid grid-cols-3 gap-1.5 text-center font-semibold pt-1">
-          <div className="rounded-lg bg-white p-2 border border-amber-200/60 shadow-sm">
-            <span className="block text-[11px] text-slate-500">{isAr ? "منتج واحد" : "1 Item"}</span>
-            <span className="font-black text-slate-900">199 ر.س</span>
+        {productInfo?.slug === "rose-of-no-mans-land-cosmetic-bag" ? (
+          <div className="grid grid-cols-2 gap-1.5 text-center font-semibold pt-1">
+            <div className="rounded-lg bg-white p-2 border border-amber-200/60 shadow-sm">
+              <span className="block text-[11px] text-slate-500">{isAr ? "قطعة" : "1 piece"}</span>
+              <span className="font-black text-slate-900">149 ر.س</span>
+              <span className="mt-0.5 block text-[10px] font-medium text-emerald-700">
+                {isAr ? "توصيل مجاني" : "Free delivery"}
+              </span>
+            </div>
+            <div className="rounded-lg bg-amber-500/20 p-2 border border-amber-400 shadow-sm">
+              <span className="block text-[11px] text-amber-900 font-bold">{isAr ? "2 قطع" : "2 pieces"}</span>
+              <span className="font-black text-amber-900">199 ر.س</span>
+              <span className="mt-0.5 block text-[10px] font-medium text-emerald-700">
+                {isAr ? "توصيل مجاني" : "Free delivery"}
+              </span>
+            </div>
           </div>
-          <div className="rounded-lg bg-white p-2 border border-amber-300 shadow-sm relative overflow-hidden">
-            <span className="block text-[11px] text-slate-500">{isAr ? "منتجان" : "2 Items"}</span>
-            <span className="font-black text-amber-700">279 ر.س</span>
+        ) : (
+          <div className="grid grid-cols-3 gap-1.5 text-center font-semibold pt-1">
+            <div className="rounded-lg bg-white p-2 border border-amber-200/60 shadow-sm">
+              <span className="block text-[11px] text-slate-500">{isAr ? "منتج واحد" : "1 Item"}</span>
+              <span className="font-black text-slate-900">199 ر.س</span>
+            </div>
+            <div className="rounded-lg bg-white p-2 border border-amber-300 shadow-sm relative overflow-hidden">
+              <span className="block text-[11px] text-slate-500">{isAr ? "منتجان" : "2 Items"}</span>
+              <span className="font-black text-amber-700">279 ر.س</span>
+            </div>
+            <div className="rounded-lg bg-amber-500/20 p-2 border border-amber-400 shadow-sm">
+              <span className="block text-[11px] text-amber-900 font-bold">{isAr ? "3 منتجات" : "3 Items"}</span>
+              <span className="font-black text-amber-900">349 ر.س</span>
+            </div>
           </div>
-          <div className="rounded-lg bg-amber-500/20 p-2 border border-amber-400 shadow-sm">
-            <span className="block text-[11px] text-amber-900 font-bold">{isAr ? "3 منتجات" : "3 Items"}</span>
-            <span className="font-black text-amber-900">349 ر.س</span>
-          </div>
-        </div>
+        )}
       </div>
 
       {quantityOffer.discount > 0 && (

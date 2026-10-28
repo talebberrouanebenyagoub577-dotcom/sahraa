@@ -571,6 +571,59 @@ export async function AmazonProductPage({
               description: t("emsFootMedia.usageDescription"),
             },
           ]
+      : product.slug === "rose-of-no-mans-land-cosmetic-bag"
+        ? [
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/colors.jpg",
+              title: t("cosmeticBagMedia.colorsTitle"),
+              description: t("cosmeticBagMedia.colorsDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/collage.jpg",
+              title: t("cosmeticBagMedia.collageTitle"),
+              description: t("cosmeticBagMedia.collageDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/brown.jpg",
+              title: t("cosmeticBagMedia.brownTitle"),
+              description: t("cosmeticBagMedia.brownDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/beige.jpg",
+              title: t("cosmeticBagMedia.beigeTitle"),
+              description: t("cosmeticBagMedia.beigeDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/pink.jpg",
+              title: t("cosmeticBagMedia.pinkTitle"),
+              description: t("cosmeticBagMedia.pinkDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/black.jpg",
+              title: t("cosmeticBagMedia.blackTitle"),
+              description: t("cosmeticBagMedia.blackDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/hold.jpg",
+              title: t("cosmeticBagMedia.holdTitle"),
+              description: t("cosmeticBagMedia.holdDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/interior.jpg",
+              title: t("cosmeticBagMedia.interiorTitle"),
+              description: t("cosmeticBagMedia.interiorDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/packing.jpg",
+              title: t("cosmeticBagMedia.packingTitle"),
+              description: t("cosmeticBagMedia.packingDescription"),
+            },
+            {
+              src: "/products/rose-of-no-mans-land-cosmetic-bag/brown-beige.jpg",
+              title: t("cosmeticBagMedia.pairTitle"),
+              description: t("cosmeticBagMedia.pairDescription"),
+            },
+          ]
       : product.slug === "slimmax-firming-serum-with-retinol-extract-mvh1ii9a"
         ? [
             {
@@ -720,7 +773,11 @@ export async function AmazonProductPage({
                 })}
               </p>
             )}
-            <p className="mt-3 text-sm font-medium text-amber-800">{t("offerBody")}</p>
+            <p className="mt-3 text-sm font-medium text-amber-800">
+              {product.slug === "rose-of-no-mans-land-cosmetic-bag"
+                ? t("cosmeticBagMedia.offerBody")
+                : t("offerBody")}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -835,7 +892,11 @@ export async function AmazonProductPage({
       {editorialMedia.length > 0 && (
         <section className="mt-12">
           <h2 className="text-2xl font-bold">
-            {product.slug === "ems-foot-massager-mat"
+            {product.slug === "rose-of-no-mans-land-cosmetic-bag"
+              ? t("cosmeticBagMedia.sectionTitle")
+              : product.slug === "slimmax-firming-serum-with-retinol-extract-mvh1ii9a"
+              ? t("retinalShotMedia.sectionTitle")
+              : product.slug === "ems-foot-massager-mat"
               ? t("emsFootMedia.sectionTitle")
               : product.slug === "women-perfume-trio-la-vita-sbela-mi-way-ideal"
               ? t("perfumeTrioMedia.sectionTitle")
