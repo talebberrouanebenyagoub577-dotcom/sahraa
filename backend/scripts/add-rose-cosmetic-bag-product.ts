@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { loadProjectEnv } from "./load-project-env";
 
+const dbTarget = loadProjectEnv();
 const prisma = new PrismaClient();
 
 const slug = "rose-of-no-mans-land-cosmetic-bag";
@@ -115,6 +117,15 @@ const variants = [
 ];
 
 async function main() {
+  console.log(
+    `Catalog write target: ${dbTarget.kind} host=${dbTarget.host} db=${dbTarget.db}`
+  );
+  if (dbTarget.kind === "remote" && process.env.ALLOW_REMOTE_DB !== "1") {
+    throw new Error(
+      "Refusing a remote DATABASE_URL. This script uses the local .env (localhost) or the EasyPanel Backend service environment. Set ALLOW_REMOTE_DB=1 only after confirming the host."
+    );
+  }
+
   const admin = await prisma.user.findFirst({
     where: { role: "SUPER_ADMIN" },
     select: { id: true },
